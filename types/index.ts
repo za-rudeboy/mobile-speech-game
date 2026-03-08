@@ -1,0 +1,89 @@
+// Game identifiers
+export type GameId = 'my_turn_your_turn' | 'where_is_it' | 'which_is_bigger';
+export type TargetCategory = 'pronoun' | 'location' | 'comparison' | 'sequence' | 'question';
+export type TargetStatus = 'enabled' | 'later' | 'mastered';
+export type InputMode = 'touch' | 'speech';
+export type PromptType = 'choose_between_two' | 'choose_between_four' | 'tap_object' | 'drag_to_place';
+export type GamePhase = 'idle' | 'intro' | 'playing' | 'feedback' | 'complete';
+
+export interface ChildProfile {
+  child_id: string;
+  display_name: string;
+  birth_year?: number;
+  notes?: string;
+  preferred_rewards?: string[];
+  created_at: string;   // ISO 8601
+  updated_at: string;   // ISO 8601
+}
+
+export interface TargetConcept {
+  target_id: string;      // e.g. "target_my", "target_under"
+  slug: string;           // e.g. "my", "under"
+  label: string;          // display label e.g. "my", "under"
+  category: TargetCategory;
+  game_id: GameId;
+  status: TargetStatus;
+  difficulty_order: number;  // 1-20, controls introduction order
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PromptTemplate {
+  prompt_id: string;         // e.g. "prompt_turn_01"
+  game_id: GameId;
+  target_ids: string[];      // references TargetConcept.target_id
+  prompt_type: PromptType;
+  spoken_text: string;       // e.g. "Whose turn?"
+  visual_scene_key: string;  // emoji or asset key e.g. "🏀"
+  answer_options: string[];  // e.g. ["my turn", "your turn"]
+  correct_answer: string;    // must be one of answer_options
+  enabled: boolean;
+}
+
+export interface PracticeSession {
+  session_id: string;
+  child_id: string;
+  game_id: GameId;
+  started_at: string;
+  ended_at?: string;
+  prompt_count: number;
+  notes?: string;
+}
+
+export interface PromptAttempt {
+  attempt_id: string;
+  session_id: string;
+  prompt_id: string;
+  target_ids: string[];
+  input_mode: InputMode;
+  raw_speech_text?: string;
+  audio_clip_path?: string;
+  model_top_guess?: string;
+  model_second_guess?: string;
+  model_confidence?: number;    // 0-1
+  final_interpreted_answer: string;
+  was_parent_corrected: boolean;
+  was_correct_for_prompt: boolean;
+  response_time_ms?: number;
+  created_at: string;
+}
+
+export interface SpeechMappingExample {
+  mapping_id: string;
+  child_id: string;
+  target_id: string;
+  raw_speech_text: string;
+  audio_clip_path?: string;
+  context_tag: string;      // e.g. "turns", "location", "comparison"
+  confirmed_by_parent: boolean;
+  times_seen: number;
+  last_seen_at: string;
+}
+
+export interface ParentObservation {
+  observation_id: string;
+  child_id: string;
+  target_id?: string;
+  note_text: string;
+  observed_at: string;
+}

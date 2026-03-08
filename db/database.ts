@@ -7,6 +7,7 @@ import { SEED_PROMPTS_GAME3 } from '@/data/seeds/prompts-game3';
 import { SEED_TARGETS } from '@/data/seeds/targets';
 import {
   ChildProfile,
+  GameProgress,
   GameId,
   ParentObservation,
   PracticeSession,
@@ -51,6 +52,9 @@ interface PromptRow {
   game_id: GameId;
   target_ids: string;
   prompt_type: PromptTemplate['prompt_type'];
+  difficulty_level: PromptTemplate['difficulty_level'];
+  prompt_group: string;
+  feedback_key: string;
   spoken_text: string;
   visual_scene_key: string;
   answer_options: string;
@@ -62,10 +66,22 @@ interface SessionRow {
   session_id: string;
   child_id: string;
   game_id: GameId;
+  level_started: number;
+  level_ended: number;
+  accuracy: number;
   started_at: string;
   ended_at: string | null;
   prompt_count: number;
   notes: string | null;
+}
+
+interface GameProgressRow {
+  child_id: string;
+  game_id: GameId;
+  current_level: number;
+  highest_level_unlocked: number;
+  last_session_accuracy: number;
+  updated_at: string;
 }
 
 interface AttemptRow {
@@ -192,6 +208,15 @@ const TABLE_CREATION_SQL = [
     observed_at TEXT NOT NULL,
     FOREIGN KEY (child_id) REFERENCES child_profiles(child_id)
   );`,
+  `CREATE TABLE IF NOT EXISTS game_progress (
+    child_id TEXT NOT NULL,
+    game_id TEXT NOT NULL,
+    current_level INTEGER NOT NULL DEFAULT 1,
+    highest_level_unlocked INTEGER NOT NULL DEFAULT 1,
+    last_session_accuracy REAL NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (child_id, game_id)
+  );`,
 ];
 
 function parseStringArray(raw: string): string[] {
@@ -208,6 +233,9 @@ function toPromptTemplate(row: PromptRow): PromptTemplate {
     game_id: row.game_id,
     target_ids: parseStringArray(row.target_ids),
     prompt_type: row.prompt_type,
+    difficulty_level: row.difficulty_level,
+    prompt_group: row.prompt_group,
+    feedback_key: row.feedback_key,
     spoken_text: row.spoken_text,
     visual_scene_key: row.visual_scene_key,
     answer_options: parseStringArray(row.answer_options),
@@ -221,10 +249,24 @@ function toPracticeSession(row: SessionRow): PracticeSession {
     session_id: row.session_id,
     child_id: row.child_id,
     game_id: row.game_id,
+    level_started: row.level_started,
+    level_ended: row.level_ended,
+    accuracy: row.accuracy,
     started_at: row.started_at,
     ended_at: row.ended_at ?? undefined,
     prompt_count: row.prompt_count,
     notes: row.notes ?? undefined,
+  };
+}
+
+function toGameProgress(row: GameProgressRow): GameProgress {
+  return {
+    child_id: row.child_id,
+    game_id: row.game_id,
+    current_level: row.current_level,
+    highest_level_unlocked: row.highest_level_unlocked,
+    last_session_accuracy: row.last_session_accuracy,
+    updated_at: row.updated_at,
   };
 }
 
@@ -339,16 +381,22 @@ async function seedIfFirstRun(database: SQLite.SQLiteDatabase): Promise<void> {
         game_id,
         target_ids,
         prompt_type,
+        difficulty_level,
+        prompt_group,
+        feedback_key,
         spoken_text,
         visual_scene_key,
         answer_options,
         correct_answer,
         enabled
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       prompt.prompt_id,
       prompt.game_id,
       JSON.stringify(prompt.target_ids),
       prompt.prompt_type,
+      prompt.difficulty_level,
+      prompt.prompt_group,
+      prompt.feedback_key,
       prompt.spoken_text,
       prompt.visual_scene_key,
       JSON.stringify(prompt.answer_options),
@@ -360,9 +408,56 @@ async function seedIfFirstRun(database: SQLite.SQLiteDatabase): Promise<void> {
 
 async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
   await database.execAsync('PRAGMA foreign_keys = ON;');
+
   for (const statement of TABLE_CREATION_SQL) {
     await database.execAsync(statement);
   }
+
+  const versionRow = await database.getFirstAsync<{ user_version: number }>(
+    'PRAGMA user_version;'
+  );
+  const currentVersion = versionRow?.user_version ?? 0;
+
+  if (currentVersion < 2) {
+    await database.execAsync(
+      'ALTER TABLE prompt_templates ADD COLUMN difficulty_level INTEGER NOT NULL DEFAULT 1;'
+    );
+    await database.execAsync(
+      "ALTER TABLE prompt_templates ADD COLUMN prompt_group TEXT NOT NULL DEFAULT '';"
+    );
+    await database.execAsync(
+      "ALTER TABLE prompt_templates ADD COLUMN feedback_key TEXT NOT NULL DEFAULT '';"
+    );
+    await database.execAsync('PRAGMA user_version = 2;');
+  }
+
+  if (currentVersion < 3) {
+    await database.execAsync(
+      'ALTER TABLE practice_sessions ADD COLUMN level_started INTEGER NOT NULL DEFAULT 1;'
+    );
+    await database.execAsync(
+      'ALTER TABLE practice_sessions ADD COLUMN level_ended INTEGER NOT NULL DEFAULT 1;'
+    );
+    await database.execAsync(
+      'ALTER TABLE practice_sessions ADD COLUMN accuracy REAL NOT NULL DEFAULT 0;'
+    );
+    await database.execAsync('PRAGMA user_version = 3;');
+  }
+
+  if (currentVersion < 4) {
+    await database.execAsync(`CREATE TABLE IF NOT EXISTS game_progress (
+      child_id TEXT NOT NULL,
+      game_id TEXT NOT NULL,
+      current_level INTEGER NOT NULL DEFAULT 1,
+      highest_level_unlocked INTEGER NOT NULL DEFAULT 1,
+      last_session_accuracy REAL NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (child_id, game_id)
+    );`);
+    await database.execAsync('PRAGMA user_version = 4;');
+  }
+
+  await database.execAsync('PRAGMA user_version = 4;');
   await seedIfFirstRun(database);
 }
 
@@ -436,6 +531,37 @@ export async function getEnabledPromptsByGame(gameId: GameId): Promise<PromptTem
   return rows.map(toPromptTemplate);
 }
 
+export async function getPromptsForGameLevels(
+  gameId: GameId,
+  levelNumbers: number[],
+  enabledTargetIds: string[]
+): Promise<PromptTemplate[]> {
+  if (levelNumbers.length === 0) {
+    return [];
+  }
+
+  const database = await getDatabase();
+  const levelPlaceholders = levelNumbers.map(() => '?').join(', ');
+  const params: Array<string | number> = [gameId, ...levelNumbers];
+
+  let query = `SELECT * FROM prompt_templates
+    WHERE game_id = ?
+      AND enabled = 1
+      AND difficulty_level IN (${levelPlaceholders})`;
+
+  if (enabledTargetIds.length > 0) {
+    const targetClause = enabledTargetIds.map(() => 'target_ids LIKE ?').join(' OR ');
+    query += `
+      AND (${targetClause})`;
+    params.push(...enabledTargetIds.map((targetId) => `%"${targetId}"%`));
+  }
+
+  query += ';';
+
+  const rows = await database.getAllAsync<PromptRow>(query, ...params);
+  return rows.map(toPromptTemplate);
+}
+
 export async function saveSession(session: PracticeSession): Promise<void> {
   const database = await getDatabase();
   await database.runAsync(
@@ -443,18 +569,54 @@ export async function saveSession(session: PracticeSession): Promise<void> {
       session_id,
       child_id,
       game_id,
+      level_started,
+      level_ended,
+      accuracy,
       started_at,
       ended_at,
       prompt_count,
       notes
-    ) VALUES (?, ?, ?, ?, ?, ?, ?);`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
     session.session_id,
     session.child_id,
     session.game_id,
+    session.level_started,
+    session.level_ended,
+    session.accuracy,
     session.started_at,
     session.ended_at ?? null,
     session.prompt_count,
     session.notes ?? null
+  );
+}
+
+export async function getGameProgress(childId: string, gameId: GameId): Promise<GameProgress | null> {
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<GameProgressRow>(
+    'SELECT * FROM game_progress WHERE child_id = ? AND game_id = ?;',
+    childId,
+    gameId
+  );
+  return row ? toGameProgress(row) : null;
+}
+
+export async function upsertGameProgress(progress: GameProgress): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync(
+    `INSERT OR REPLACE INTO game_progress (
+      child_id,
+      game_id,
+      current_level,
+      highest_level_unlocked,
+      last_session_accuracy,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?);`,
+    progress.child_id,
+    progress.game_id,
+    progress.current_level,
+    progress.highest_level_unlocked,
+    progress.last_session_accuracy,
+    progress.updated_at
   );
 }
 
@@ -506,9 +668,12 @@ export async function saveAttempt(attempt: PromptAttempt): Promise<void> {
 }
 
 export async function saveAttempts(attempts: PromptAttempt[]): Promise<void> {
-  for (const attempt of attempts) {
-    await saveAttempt(attempt);
-  }
+  const database = await getDatabase();
+  await database.withTransactionAsync(async () => {
+    for (const attempt of attempts) {
+      await saveAttempt(attempt);
+    }
+  });
 }
 
 export async function getAttemptsBySession(sessionId: string): Promise<PromptAttempt[]> {

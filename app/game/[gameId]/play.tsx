@@ -4,7 +4,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { PROMPTS_PER_SESSION } from '@/data/constants';
+import { DEFAULT_CHILD_NAME, DEFAULT_PARENT_LABEL } from '@/data/constants';
+import { resolveCopyTokens } from '@/data/content/mvp-v1';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useGameStore } from '@/store/game-store';
 import { GameId } from '@/types';
@@ -94,18 +95,32 @@ function SizeComparisonScene({ sceneKey }: { sceneKey: string }) {
   );
 }
 
+function getPersonEmoji(label: string) {
+  const normalizedLabel = label.trim().toLowerCase();
+
+  if (normalizedLabel === DEFAULT_CHILD_NAME.toLowerCase()) {
+    return '🧒';
+  }
+
+  if (normalizedLabel === DEFAULT_PARENT_LABEL.toLowerCase()) {
+    return '👨';
+  }
+
+  return '🙂';
+}
+
 function renderScene(gameId: GameId, sceneKey: string, correctAnswer: string) {
   if (gameId === 'my_turn_your_turn') {
     return (
       <View style={styles.emojiRow}>
         <View style={styles.personWithLabel}>
           <ThemedText style={styles.personEmoji}>🧒</ThemedText>
-          <ThemedText style={styles.personLabel}>Caelum</ThemedText>
+          <ThemedText style={styles.personLabel}>{DEFAULT_CHILD_NAME}</ThemedText>
         </View>
         <ThemedText style={styles.objectEmoji}>{sceneKey}</ThemedText>
         <View style={styles.personWithLabel}>
           <ThemedText style={styles.personEmoji}>👨</ThemedText>
-          <ThemedText style={styles.personLabel}>Dad</ThemedText>
+          <ThemedText style={styles.personLabel}>{DEFAULT_PARENT_LABEL}</ThemedText>
         </View>
       </View>
     );
@@ -158,7 +173,14 @@ export default function GamePlayScreen() {
     return <ThemedView style={styles.container} />;
   }
 
-  const isTwoOptionLayout = currentPrompt.answer_options.length <= 2;
+  const answerCount = currentPrompt.answer_options.length;
+  const isTapObjectPrompt = currentPrompt.prompt_type === 'tap_object';
+  const isTwoOptionLayout = answerCount <= 2;
+  const isThreeOptionLayout = answerCount === 3;
+  const resolvedSpokenText = resolveCopyTokens(currentPrompt.spoken_text, {
+    childName: DEFAULT_CHILD_NAME,
+    parentLabel: DEFAULT_PARENT_LABEL,
+  });
 
   const handleAnswerPress = (answer: string) => {
     submitAnswer(answer);
@@ -172,33 +194,64 @@ export default function GamePlayScreen() {
           <ThemedText style={[styles.backText, { color: tintColor }]}>Back</ThemedText>
         </Pressable>
         <ThemedText style={[styles.promptCounter, { color: secondaryText }]}>
-          Prompt {currentPromptIndex + 1} of {PROMPTS_PER_SESSION}
+          Prompt {currentPromptIndex + 1} of {prompts.length}
         </ThemedText>
       </View>
 
-      <View style={[styles.sceneCard, { backgroundColor: cardColor }]}> 
+      <View style={[styles.sceneCard, { backgroundColor: cardColor }]}>
         {renderScene(currentPrompt.game_id, currentPrompt.visual_scene_key, currentPrompt.correct_answer)}
-        <ThemedText style={styles.spokenText}>{currentPrompt.spoken_text}</ThemedText>
+        <ThemedText style={styles.spokenText}>{resolvedSpokenText}</ThemedText>
       </View>
 
       <View
         style={[
           styles.answersWrap,
-          isTwoOptionLayout ? styles.answersWrapRow : styles.answersWrapGrid,
+          isTapObjectPrompt || isTwoOptionLayout
+            ? styles.answersWrapRow
+            : isThreeOptionLayout
+              ? styles.answersWrapStack
+              : styles.answersWrapGrid,
         ]}>
-        {currentPrompt.answer_options.map((answer) => (
-          <Pressable
-            accessibilityRole="button"
-            key={answer}
-            onPress={() => handleAnswerPress(answer)}
-            style={({ pressed }) => [
-              styles.answerButton,
-              isTwoOptionLayout ? styles.answerButtonRow : styles.answerButtonGrid,
-              { backgroundColor: actionButtonColor, opacity: pressed ? 0.85 : 1 },
-            ]}>
-            <ThemedText style={styles.answerText}>{answer}</ThemedText>
-          </Pressable>
-        ))}
+        {currentPrompt.answer_options.map((answer) => {
+          const resolvedAnswerLabel = resolveCopyTokens(answer, {
+            childName: DEFAULT_CHILD_NAME,
+            parentLabel: DEFAULT_PARENT_LABEL,
+          });
+
+          if (isTapObjectPrompt) {
+            return (
+              <Pressable
+                accessibilityRole="button"
+                key={answer}
+                onPress={() => handleAnswerPress(answer)}
+                style={({ pressed }) => [
+                  styles.personCard,
+                  { backgroundColor: actionButtonColor, opacity: pressed ? 0.85 : 1 },
+                ]}>
+                <ThemedText style={styles.personCardEmoji}>{getPersonEmoji(resolvedAnswerLabel)}</ThemedText>
+                <ThemedText style={styles.personCardLabel}>{resolvedAnswerLabel}</ThemedText>
+              </Pressable>
+            );
+          }
+
+          return (
+            <Pressable
+              accessibilityRole="button"
+              key={answer}
+              onPress={() => handleAnswerPress(answer)}
+              style={({ pressed }) => [
+                styles.answerButton,
+                isTwoOptionLayout
+                  ? styles.answerButtonRow
+                  : isThreeOptionLayout
+                    ? styles.answerButtonStack
+                    : styles.answerButtonGrid,
+                { backgroundColor: actionButtonColor, opacity: pressed ? 0.85 : 1 },
+              ]}>
+              <ThemedText style={styles.answerText}>{resolvedAnswerLabel}</ThemedText>
+            </Pressable>
+          );
+        })}
       </View>
     </ThemedView>
   );
@@ -331,6 +384,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     rowGap: 16,
   },
+  answersWrapStack: {
+    flexDirection: 'column',
+    gap: 12,
+  },
   answerButton: {
     minHeight: 80,
     borderRadius: 20,
@@ -344,9 +401,36 @@ const styles = StyleSheet.create({
   answerButtonGrid: {
     width: '48%',
   },
+  answerButtonStack: {
+    width: '100%',
+    minHeight: 72,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   answerText: {
     fontSize: 28,
     lineHeight: 34,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  personCard: {
+    flex: 1,
+    minHeight: 140,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  personCardEmoji: {
+    fontSize: 58,
+    lineHeight: 66,
+  },
+  personCardLabel: {
+    fontSize: 26,
+    lineHeight: 32,
     fontWeight: '700',
     color: '#ffffff',
   },

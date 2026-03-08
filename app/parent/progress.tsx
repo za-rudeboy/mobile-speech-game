@@ -4,8 +4,15 @@ import { FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { getObservations, getTargets, getWeeklyStats, saveObservation } from '@/db';
-import type { ParentObservation, TargetConcept } from '@/types';
+import { GAME_IDS, GAME_META } from '@/data/constants';
+import { getGameProgress, getObservations, getTargets, getWeeklyStats, saveObservation } from '@/db';
+import type { GameId, GameProgress, ParentObservation, TargetConcept } from '@/types';
+
+const GAME_ORDER: GameId[] = [
+  GAME_IDS.MY_TURN_YOUR_TURN,
+  GAME_IDS.WHERE_IS_IT,
+  GAME_IDS.WHICH_IS_BIGGER,
+];
 
 export default function ProgressScreen() {
   const [weeklyStats, setWeeklyStats] = useState({
@@ -17,17 +24,26 @@ export default function ProgressScreen() {
   const [observations, setObservations] = useState<ParentObservation[]>([]);
   const [noteText, setNoteText] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [gameProgressMap, setGameProgressMap] = useState<Record<string, GameProgress | null>>({});
 
   const loadProgressData = useCallback(async () => {
-    const [stats, loadedObservations, loadedTargets] = await Promise.all([
+    const [stats, loadedObservations, loadedTargets, g1, g2, g3] = await Promise.all([
       getWeeklyStats(),
       getObservations('child_01'),
       getTargets(),
+      getGameProgress('child_01', GAME_IDS.MY_TURN_YOUR_TURN),
+      getGameProgress('child_01', GAME_IDS.WHERE_IS_IT),
+      getGameProgress('child_01', GAME_IDS.WHICH_IS_BIGGER),
     ]);
 
     setWeeklyStats(stats);
     setObservations(loadedObservations);
     setTargets(loadedTargets);
+    setGameProgressMap({
+      [GAME_IDS.MY_TURN_YOUR_TURN]: g1,
+      [GAME_IDS.WHERE_IS_IT]: g2,
+      [GAME_IDS.WHICH_IS_BIGGER]: g3,
+    });
   }, []);
 
   useFocusEffect(
@@ -46,6 +62,16 @@ export default function ProgressScreen() {
       })),
     [targets]
   );
+
+  const enabledCountByGame = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const target of targets) {
+      if (target.status === 'enabled') {
+        counts[target.game_id] = (counts[target.game_id] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }, [targets]);
 
   const addObservation = useCallback(async () => {
     const trimmedText = noteText.trim();
@@ -86,6 +112,38 @@ export default function ProgressScreen() {
         contentContainerStyle={styles.content}
         ListHeaderComponent={
           <>
+            <View style={styles.section}>
+              <ThemedText type="subtitle" style={styles.sectionTitle}>
+                Game progress
+              </ThemedText>
+              {GAME_ORDER.map((gId) => {
+                const progress = gameProgressMap[gId];
+                const meta = GAME_META[gId];
+                const currentLevel = progress?.current_level ?? 1;
+                const highestUnlocked = progress?.highest_level_unlocked ?? 1;
+                const lastAccuracy = progress ? Math.round(progress.last_session_accuracy * 100) : 0;
+                const enabledCount = enabledCountByGame[gId] ?? 0;
+
+                return (
+                  <View key={gId} style={styles.gameCard}>
+                    <ThemedText style={styles.gameCardTitle}>
+                      {meta.emoji} {meta.title}
+                    </ThemedText>
+                    <ThemedText style={styles.gameCardStat}>Level {currentLevel}</ThemedText>
+                    <ThemedText style={styles.gameCardStat}>
+                      Highest unlocked: {highestUnlocked}
+                    </ThemedText>
+                    <ThemedText style={styles.gameCardStat}>
+                      Last session: {lastAccuracy}%
+                    </ThemedText>
+                    <ThemedText style={styles.gameCardStat}>
+                      Enabled concepts: {enabledCount}
+                    </ThemedText>
+                  </View>
+                );
+              })}
+            </View>
+
             <View style={styles.section}>
               <ThemedText type="subtitle" style={styles.sectionTitle}>
                 This week
@@ -171,6 +229,24 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     marginBottom: 6,
+  },
+  gameCard: {
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    paddingTop: 8,
+    paddingBottom: 4,
+    gap: 2,
+  },
+  gameCardTitle: {
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  gameCardStat: {
+    fontSize: 14,
+    lineHeight: 20,
+    opacity: 0.85,
   },
   statText: {
     fontSize: 18,

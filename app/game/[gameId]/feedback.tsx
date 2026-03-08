@@ -4,6 +4,8 @@ import { Pressable, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { DEFAULT_CHILD_NAME, DEFAULT_PARENT_LABEL } from '@/data/constants';
+import { MVP_V1_GAME_COPY, MVP_V1_UI_GLOBAL, resolveCopyTokens } from '@/data/content/mvp-v1';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useGameStore } from '@/store/game-store';
 
@@ -48,6 +50,17 @@ export default function GameFeedbackScreen() {
     return <ThemedView style={styles.container} />;
   }
 
+  const gameFeedback = MVP_V1_GAME_COPY[currentPrompt.game_id]?.feedback as
+    | Record<string, string>
+    | undefined;
+  const rawFeedbackSentence = gameFeedback?.[currentPrompt.feedback_key] ?? currentPrompt.correct_answer;
+  const feedbackSentence = resolveCopyTokens(rawFeedbackSentence, {
+    childName: DEFAULT_CHILD_NAME,
+    parentLabel: DEFAULT_PARENT_LABEL,
+  });
+
+  const headingText = lastAnswerCorrect ? MVP_V1_UI_GLOBAL.nice_work : MVP_V1_UI_GLOBAL.try_again;
+
   const handleNext = () => {
     nextPrompt();
 
@@ -64,13 +77,10 @@ export default function GameFeedbackScreen() {
   };
 
   return (
-    <ThemedView style={[styles.container, { backgroundColor: feedbackBackground }]}> 
+    <ThemedView style={[styles.container, { backgroundColor: feedbackBackground }]}>
       <ThemedText style={styles.statusEmoji}>{lastAnswerCorrect ? '✅' : '❌'}</ThemedText>
-      <ThemedText style={styles.messageText}>
-        {lastAnswerCorrect
-          ? `Yes! ${currentPrompt.correct_answer}.`
-          : `The answer was: ${currentPrompt.correct_answer}`}
-      </ThemedText>
+      <ThemedText style={styles.headingText}>{headingText}</ThemedText>
+      <ThemedText style={styles.feedbackSentence}>{feedbackSentence}</ThemedText>
       <Pressable
         accessibilityRole="button"
         onPress={handleNext}
@@ -78,7 +88,7 @@ export default function GameFeedbackScreen() {
           styles.nextButton,
           { backgroundColor: actionButtonColor, opacity: pressed ? 0.85 : 1 },
         ]}>
-        <ThemedText style={styles.nextText}>Next</ThemedText>
+        <ThemedText style={styles.nextText}>{MVP_V1_UI_GLOBAL.do_another}</ThemedText>
       </Pressable>
     </ThemedView>
   );
@@ -96,11 +106,17 @@ const styles = StyleSheet.create({
     fontSize: 84,
     lineHeight: 90,
   },
-  messageText: {
-    fontSize: 30,
-    lineHeight: 36,
+  headingText: {
+    fontSize: 34,
+    lineHeight: 40,
     textAlign: 'center',
     fontWeight: '700',
+  },
+  feedbackSentence: {
+    fontSize: 24,
+    lineHeight: 30,
+    textAlign: 'center',
+    fontWeight: '500',
   },
   nextButton: {
     marginTop: 8,
@@ -113,8 +129,8 @@ const styles = StyleSheet.create({
   },
   nextText: {
     color: '#ffffff',
-    fontSize: 28,
-    lineHeight: 32,
+    fontSize: 24,
+    lineHeight: 28,
     fontWeight: '700',
   },
 });

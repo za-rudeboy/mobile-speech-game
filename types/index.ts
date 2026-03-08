@@ -33,6 +33,9 @@ export interface PromptTemplate {
   game_id: GameId;
   target_ids: string[];      // references TargetConcept.target_id
   prompt_type: PromptType;
+  difficulty_level: 1 | 2 | 3 | 4;
+  prompt_group: string;
+  feedback_key: string;
   spoken_text: string;       // e.g. "Whose turn?"
   visual_scene_key: string;  // emoji or asset key e.g. "🏀"
   answer_options: string[];  // e.g. ["my turn", "your turn"]
@@ -44,10 +47,22 @@ export interface PracticeSession {
   session_id: string;
   child_id: string;
   game_id: GameId;
+  level_started: number;
+  level_ended: number;
+  accuracy: number;
   started_at: string;
   ended_at?: string;
   prompt_count: number;
   notes?: string;
+}
+
+export interface GameProgress {
+  child_id: string;
+  game_id: GameId;
+  current_level: number;
+  highest_level_unlocked: number;
+  last_session_accuracy: number;
+  updated_at: string;
 }
 
 export interface PromptAttempt {

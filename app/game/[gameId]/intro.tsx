@@ -4,7 +4,7 @@ import { Pressable, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { GAME_META } from '@/data/constants';
+import { DEFAULT_SESSION_PROMPT_COUNT, GAME_META } from '@/data/constants';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useGameStore } from '@/store/game-store';
 import { GameId } from '@/types';
@@ -23,6 +23,7 @@ export default function GameIntroScreen() {
   const router = useRouter();
   const { gameId } = useLocalSearchParams<{ gameId?: string | string[] }>();
   const startGame = useGameStore((state) => state.startGame);
+  const currentLevel = useGameStore((state) => state.currentLevel);
   const [isStarting, setIsStarting] = useState(false);
   const tintColor = useThemeColor({}, 'tint');
   const onTintText = useThemeColor({}, 'background');
@@ -55,6 +56,9 @@ export default function GameIntroScreen() {
       </ThemedText>
       <ThemedText style={styles.emoji}>{gameMeta?.emoji ?? '🎮'}</ThemedText>
       <ThemedText style={[styles.subtitle, { color: secondaryText }]}>{subtitle}</ThemedText>
+      <ThemedText style={[styles.levelInfo, { color: secondaryText }]}>
+        Level {currentLevel} · {DEFAULT_SESSION_PROMPT_COUNT} prompts
+      </ThemedText>
 
       <Pressable
         accessibilityRole="button"
@@ -92,6 +96,11 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 24,
     lineHeight: 30,
+    textAlign: 'center',
+  },
+  levelInfo: {
+    fontSize: 18,
+    lineHeight: 24,
     textAlign: 'center',
   },
   startButton: {

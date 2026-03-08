@@ -4,19 +4,30 @@ import { ScrollView, StyleSheet, Switch, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { GAME_META } from '@/data/constants';
-import { getTargets, updateTargetStatus } from '@/db';
-import type { GameId, TargetConcept } from '@/types';
+import { GAME_IDS, GAME_META } from '@/data/constants';
+import { getGameProgress, getTargets, updateTargetStatus } from '@/db';
+import type { GameId, GameProgress, TargetConcept } from '@/types';
 
 const GAME_ORDER: GameId[] = ['my_turn_your_turn', 'where_is_it', 'which_is_bigger'];
 
 export default function TargetsScreen() {
   const [targets, setTargets] = useState<TargetConcept[]>([]);
   const [updatingIds, setUpdatingIds] = useState<Record<string, boolean>>({});
+  const [gameProgressMap, setGameProgressMap] = useState<Record<string, GameProgress | null>>({});
 
   const loadTargets = useCallback(async () => {
-    const loadedTargets = await getTargets();
+    const [loadedTargets, g1, g2, g3] = await Promise.all([
+      getTargets(),
+      getGameProgress('child_01', GAME_IDS.MY_TURN_YOUR_TURN),
+      getGameProgress('child_01', GAME_IDS.WHERE_IS_IT),
+      getGameProgress('child_01', GAME_IDS.WHICH_IS_BIGGER),
+    ]);
     setTargets(loadedTargets);
+    setGameProgressMap({
+      [GAME_IDS.MY_TURN_YOUR_TURN]: g1,
+      [GAME_IDS.WHERE_IS_IT]: g2,
+      [GAME_IDS.WHICH_IS_BIGGER]: g3,
+    });
   }, []);
 
   useFocusEffect(
@@ -79,6 +90,9 @@ export default function TargetsScreen() {
             <View key={gameId} style={styles.section}>
               <ThemedText type="subtitle" style={styles.sectionTitle}>
                 {gameMeta.title}
+              </ThemedText>
+              <ThemedText style={styles.levelSubtitle}>
+                Current level: {gameProgressMap[gameId]?.current_level ?? 1} of 4
               </ThemedText>
 
               {gameTargets.map((target) => {
@@ -147,5 +161,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 18,
     opacity: 0.7,
+  },
+  levelSubtitle: {
+    fontSize: 14,
+    lineHeight: 18,
+    opacity: 0.7,
+    marginBottom: 8,
   },
 });

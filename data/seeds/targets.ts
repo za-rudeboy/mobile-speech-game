@@ -1,7 +1,6 @@
 import { TargetConcept } from '@/types';
 
 export const SEED_TARGETS: TargetConcept[] = [
-  // Phase 1 (status: 'enabled')
   {
     target_id: 'target_my',
     slug: 'my',
@@ -68,7 +67,6 @@ export const SEED_TARGETS: TargetConcept[] = [
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
   },
-  // Phase 2 (status: 'later')
   {
     target_id: 'target_mine',
     slug: 'mine',
@@ -135,7 +133,6 @@ export const SEED_TARGETS: TargetConcept[] = [
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
   },
-  // Phase 3 (status: 'later')
   {
     target_id: 'target_me',
     slug: 'me',
@@ -213,7 +210,6 @@ export const SEED_TARGETS: TargetConcept[] = [
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
   },
-  // Phase 4 (status: 'later')
   {
     target_id: 'target_bigger',
     slug: 'bigger',

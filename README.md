@@ -1,50 +1,105 @@
-# Welcome to your Expo app 👋
+# Caelum Speech App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A mobile app built with Expo and React Native to support parent-guided language development through short, visual mini-games. The product is designed to be touch-first, with optional speech features.
 
-## Get started
+## Product Direction
 
-1. Install dependencies
+The app focuses on three core goals:
+- Teach practical language concepts through constrained game prompts
+- Keep interactions low-frustration and child-friendly
+- Let parent controls shape what targets and prompts are available
 
-   ```bash
-   npm install
-   ```
+Current implementation includes:
+- Expo Router-based navigation
+- Zustand state stores for app/game state
+- SQLite-backed local data and prompt enablement
+- Parent mode flows for targets, progress, and corrections
 
-2. Start the app
+## Tech Stack
 
-   ```bash
-   npx expo start
-   ```
+- Expo 54
+- React Native 0.81
+- React 19
+- TypeScript (strict mode)
+- Expo Router 6
+- expo-sqlite
+- Zustand
 
-In the output, you'll find options to open the app in a
+## Getting Started
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### Prerequisites
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+- Node.js 20+
+- npm 10+
+- iOS Simulator and/or Android Emulator (optional, for device targets)
 
-## Get a fresh project
-
-When you're ready, run:
+### Install
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### Run
 
-## Learn more
+```bash
+npm run start
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+Target-specific commands:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+npm run android
+npm run ios
+npm run web
+```
 
-## Join the community
+## Available Scripts
 
-Join our community of developers creating universal apps.
+- `npm run start` - Start Expo development server
+- `npm run android` - Start and open Android target
+- `npm run ios` - Start and open iOS simulator target
+- `npm run web` - Start web target
+- `npm run lint` - Run ESLint checks (Expo config)
+- `npm run reset-project` - Reset project scaffold using local script
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Project Structure
+
+- `app/` - Expo Router screens and route layouts
+- `components/` - Shared UI and reusable presentation components
+- `hooks/` - Reusable hooks
+- `constants/` - Theme and global constants
+- `db/` - SQLite access, schema, and data layer utilities
+- `store/` - Zustand stores and app/game state orchestration
+- `data/` - Seed and content data used by game flows
+- `assets/images/` - Static images and icons
+- `docs/` - Product, UX, architecture, and implementation planning docs
+
+## Development Workflow
+
+1. Create a feature branch
+2. Make focused changes
+3. Run checks:
+
+```bash
+npm run lint
+```
+
+4. Manually verify at least one runtime target (`android`, `ios`, or `web`)
+5. Open a pull request with summary + verification notes
+
+## Documentation
+
+For product context and architecture notes, start with:
+- `docs/project-summary.md`
+- `docs/mvp-implementation-plan.md`
+- `docs/data-model-and-learning-loop.md`
+- `docs/mvp-mini-games.md`
+
+## Security Notes
+
+- Do not commit secrets or runtime keys
+- Review `app.json` changes carefully (IDs, permissions, plugins)
+
+## License
+
+Private project.

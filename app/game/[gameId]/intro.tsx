@@ -1,4 +1,5 @@
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -22,6 +23,7 @@ export default function GameIntroScreen() {
   const router = useRouter();
   const { gameId } = useLocalSearchParams<{ gameId?: string | string[] }>();
   const startGame = useGameStore((state) => state.startGame);
+  const [isStarting, setIsStarting] = useState(false);
   const tintColor = useThemeColor({}, 'tint');
   const onTintText = useThemeColor({}, 'background');
   const secondaryText = useThemeColor({}, 'icon');
@@ -30,12 +32,19 @@ export default function GameIntroScreen() {
   const gameMeta = activeGameId ? GAME_META[activeGameId] : null;
   const subtitle = activeGameId ? INTRO_SUBTITLES[activeGameId] : 'Let\'s play';
 
-  const handleStart = () => {
+  const handleStart = async () => {
     if (!resolvedGameId || !isGameId(resolvedGameId)) {
       return;
     }
 
-    startGame(resolvedGameId);
+    setIsStarting(true);
+    const started = await startGame(resolvedGameId);
+    setIsStarting(false);
+
+    if (!started) {
+      return;
+    }
+
     router.push(`/game/${resolvedGameId}/play` as Href);
   };
 
@@ -49,13 +58,15 @@ export default function GameIntroScreen() {
 
       <Pressable
         accessibilityRole="button"
-        disabled={!gameMeta}
+        disabled={!gameMeta || isStarting}
         onPress={handleStart}
         style={({ pressed }) => [
           styles.startButton,
-          { backgroundColor: tintColor, opacity: pressed || !gameMeta ? 0.85 : 1 },
+          { backgroundColor: tintColor, opacity: pressed || !gameMeta || isStarting ? 0.85 : 1 },
         ]}>
-        <ThemedText style={[styles.startButtonText, { color: onTintText }]}>Start Game</ThemedText>
+        <ThemedText style={[styles.startButtonText, { color: onTintText }]}>
+          {isStarting ? 'Loading...' : 'Start Game'}
+        </ThemedText>
       </Pressable>
     </ThemedView>
   );

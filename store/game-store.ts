@@ -1,10 +1,7 @@
 import { create } from 'zustand';
 
-import { saveAttempts, saveSession } from '@/db';
+import { getEnabledPromptsByGame, saveAttempts, saveSession } from '@/db';
 import { PROMPTS_PER_SESSION } from '@/data/constants';
-import { SEED_PROMPTS_GAME1 } from '@/data/seeds/prompts';
-import { SEED_PROMPTS_GAME2 } from '@/data/seeds/prompts-game2';
-import { SEED_PROMPTS_GAME3 } from '@/data/seeds/prompts-game3';
 import { GameId, GamePhase, PracticeSession, PromptAttempt, PromptTemplate } from '@/types';
 
 interface GameState {
@@ -16,7 +13,7 @@ interface GameState {
   lastAnswerCorrect: boolean | null;
   todayPromptCount: number;
   sessionStartedAt: string;
-  startGame: (gameId: GameId) => void;
+  startGame: (gameId: GameId) => Promise<boolean>;
   submitAnswer: (answer: string) => void;
   nextPrompt: () => void;
   endGame: () => void;
@@ -45,28 +42,48 @@ function shufflePrompts(prompts: PromptTemplate[]) {
   return shuffled;
 }
 
-const ALL_SEED_PROMPTS: PromptTemplate[] = [
-  ...SEED_PROMPTS_GAME1,
-  ...SEED_PROMPTS_GAME2,
-  ...SEED_PROMPTS_GAME3,
-];
-
 export const useGameStore = create<GameState>((set, get) => ({
   ...initialGameState,
 
-  startGame: (gameId) => {
-    const promptPool = ALL_SEED_PROMPTS.filter((prompt) => prompt.enabled && prompt.game_id === gameId);
-    const selectedPrompts = shufflePrompts(promptPool).slice(0, PROMPTS_PER_SESSION);
-
+  startGame: async (gameId) => {
     set({
       currentGameId: gameId,
-      prompts: selectedPrompts,
+      prompts: [],
       currentPromptIndex: 0,
       sessionResults: [],
-      gamePhase: 'intro',
+      gamePhase: 'idle',
       lastAnswerCorrect: null,
-      sessionStartedAt: new Date().toISOString(),
+      sessionStartedAt: '',
     });
+
+    try {
+      const promptPool = await getEnabledPromptsByGame(gameId);
+      const selectedPrompts = shufflePrompts(promptPool).slice(0, PROMPTS_PER_SESSION);
+
+      if (selectedPrompts.length === 0) {
+        set({
+          ...initialGameState,
+        });
+        return false;
+      }
+
+      set({
+        currentGameId: gameId,
+        prompts: selectedPrompts,
+        currentPromptIndex: 0,
+        sessionResults: [],
+        gamePhase: 'intro',
+        lastAnswerCorrect: null,
+        sessionStartedAt: new Date().toISOString(),
+      });
+      return true;
+    } catch (error) {
+      console.error('Failed to load enabled prompts for game start', error);
+      set({
+        ...initialGameState,
+      });
+      return false;
+    }
   },
 
   submitAnswer: (answer) => {

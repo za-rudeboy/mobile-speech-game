@@ -11,7 +11,15 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   useEffect(() => {
-    getDatabase();
+    const initDatabase = async () => {
+      try {
+        await getDatabase();
+      } catch (error) {
+        console.error('Failed to initialize database on app start', error);
+      }
+    };
+
+    void initDatabase();
   }, []);
 
   return (

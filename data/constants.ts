@@ -6,7 +6,7 @@ export const GAME_IDS = {
 
 export const PROMPTS_PER_SESSION = 4;
 
-export const DEFAULT_CHILD_NAME = 'Sam';
+export const DEFAULT_CHILD_NAME = 'Caelum';
 export const DEFAULT_PARENT_LABEL = 'Dad';
 export const DEFAULT_SESSION_PROMPT_COUNT = 6;
 export const MIN_SESSION_PROMPT_COUNT = 6;

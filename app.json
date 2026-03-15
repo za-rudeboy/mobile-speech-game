@@ -56,6 +56,12 @@
         "projectId": "372c5033-78d1-4b29-9733-b585ed48e6f4"
       }
     },
-    "owner": "adamsrudy07"
+    "owner": "adamsrudy07",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/372c5033-78d1-4b29-9733-b585ed48e6f4"
+    }
   }
 }

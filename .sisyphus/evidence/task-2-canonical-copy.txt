@@ -1,0 +1,15 @@
+data/constants.ts
+  9: export const DEFAULT_CHILD_NAME = 'Sam';
+  10: export const DEFAULT_PARENT_LABEL = 'Dad';
+  11: export const DEFAULT_SESSION_PROMPT_COUNT = 6;
+  12: export const MIN_SESSION_PROMPT_COUNT = 6;
+  13: export const MAX_SESSION_PROMPT_COUNT = 10;
+
+data/content/mvp-v1.ts
+  1: export const MVP_V1_COPY_SCHEMA_VERSION = '1.0.0';
+  8: export const MVP_V1_UI_GLOBAL = {
+  15: export const MVP_V1_UI_CONFIRM = {
+  22: export const MVP_V1_ANSWER_LABELS = {
+  81: export const MVP_V1_GAME_COPY = {
+  133: export const MVP_V1_COPY = {
+  144: export function resolveCopyTokens(

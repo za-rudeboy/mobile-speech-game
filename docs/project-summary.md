@@ -88,6 +88,8 @@ The app should avoid:
 ### Core Product Notes
 - [Language Target List](./language-target-list.md)
 - [MVP Mini-Games](./mvp-mini-games.md)
+- [MVP V1 Level Progression And Copy Sheet](./mvp-v1-level-progression-and-copy.md)
+- [MVP V1 Copy Keys (JSON)](./mvp-v1-copy-keys.json)
 - [Low-Fidelity Wireframes](./low-fidelity-wireframes.md)
 - [Data Model And Learning Loop](./data-model-and-learning-loop.md)
 
@@ -103,9 +105,10 @@ If coming back to this later, read in this order:
 1. [Project Summary](./project-summary.md)
 2. [Language Target List](./language-target-list.md)
 3. [MVP Mini-Games](./mvp-mini-games.md)
-4. [Low-Fidelity Wireframes](./low-fidelity-wireframes.md)
-5. [Audio Strategy](./audio-strategy.md)
-6. [Data Model And Learning Loop](./data-model-and-learning-loop.md)
+4. [MVP V1 Level Progression And Copy Sheet](./mvp-v1-level-progression-and-copy.md)
+5. [Low-Fidelity Wireframes](./low-fidelity-wireframes.md)
+6. [Audio Strategy](./audio-strategy.md)
+7. [Data Model And Learning Loop](./data-model-and-learning-loop.md)
 
 ## Current State
 The product concept is now defined enough to support a technical design phase when ready.
@@ -119,7 +122,4 @@ What is already clear:
 - the role of audio playback and optional voice input
 
 What is intentionally not decided yet:
-- exact implementation stack
-- exact storage format
-- final visual design
 - production-level speech recognition approach

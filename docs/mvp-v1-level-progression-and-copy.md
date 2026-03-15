@@ -194,7 +194,7 @@ Assumption for this pass:
 - `Whose ball is this?`
 - Buttons: `Mine` / `Yours`
 - `Give the ball to Dad.`
-- `Give the ball to Sam.` (replace `Sam` with the child's name)
+- `Give the ball to Caelum.` (replace `Sam` with the child's name)
 - Later prompt after action success: `Give the ball to me.`
 - Later prompt after action success: `Give the ball to you.`
 - Feedback:
@@ -203,7 +203,7 @@ Assumption for this pass:
   - `Yes, it is mine.`
   - `Yes, it is yours.`
   - `Yes, give it to Dad.`
-  - `Yes, give it to Sam.`
+  - `Yes, give it to Caelum.`
 
 ### Game 2 Strings
 - `Put the ball in the box.`

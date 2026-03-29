@@ -133,3 +133,8 @@ export interface ParentObservation {
   note_text: string;
   observed_at: string;
 }
+
+export interface AppSettings {
+  speech_enabled: boolean;
+  updated_at: string;
+}

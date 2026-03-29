@@ -20,6 +20,7 @@ export default function GameFeedbackScreen() {
   const lastAnswerCorrect = useGameStore((state) => state.lastAnswerCorrect);
   const nextPrompt = useGameStore((state) => state.nextPrompt);
   const endGame = useGameStore((state) => state.endGame);
+  const speechEnabled = useGameStore((state) => state.speechEnabled);
   const resolvedGameId = Array.isArray(gameId) ? gameId[0] : gameId;
   const actionButtonColor = useThemeColor({ light: '#4A90D9', dark: '#5FA8F5' }, 'tint');
   const defaultBackground = useThemeColor({}, 'background');
@@ -48,6 +49,12 @@ export default function GameFeedbackScreen() {
   }, [currentGameId, gamePhase, prompts.length, resolvedGameId, router]);
 
   useEffect(() => {
+    if (!speechEnabled) {
+      Speech.stop();
+    }
+  }, [speechEnabled]);
+
+  useEffect(() => {
     if (!currentPrompt || gamePhase !== 'feedback' || lastAnswerCorrect === null) {
       return;
     }
@@ -64,12 +71,17 @@ export default function GameFeedbackScreen() {
       parentLabel: DEFAULT_PARENT_LABEL,
     });
 
+    if (!speechEnabled) {
+      Speech.stop();
+      return;
+    }
+
     Speech.stop();
     Speech.speak(spokenFeedback, {
       rate: 0.85,
       pitch: 1,
     });
-  }, [currentPrompt, gamePhase, lastAnswerCorrect]);
+  }, [currentPrompt, gamePhase, lastAnswerCorrect, speechEnabled]);
 
   if (!currentPrompt || gamePhase !== 'feedback' || lastAnswerCorrect === null) {
     return <ThemedView style={styles.container} />;

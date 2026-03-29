@@ -6,21 +6,24 @@ import 'react-native-reanimated';
 
 import { getDatabase } from '@/db';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useGameStore } from '@/store/game-store';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const loadAppSettings = useGameStore((state) => state.loadAppSettings);
 
   useEffect(() => {
     const initDatabase = async () => {
       try {
         await getDatabase();
+        await loadAppSettings();
       } catch (error) {
         console.error('Failed to initialize database on app start', error);
       }
     };
 
     void initDatabase();
-  }, []);
+  }, [loadAppSettings]);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>

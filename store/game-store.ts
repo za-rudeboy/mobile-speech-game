@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { create } from 'zustand';
 
 import {
@@ -29,6 +30,8 @@ interface PromptSupportState {
 }
 
 interface GameState {
+  speechEnabled: boolean;
+  settingsLoaded: boolean;
   currentGameId: GameId | null;
   activeSessionId: string;
   prompts: PromptTemplate[];
@@ -40,6 +43,8 @@ interface GameState {
   todayPromptCount: number;
   sessionStartedAt: string;
   promptSupport: PromptSupportState;
+  loadAppSettings: () => Promise<void>;
+  setSpeechEnabled: (nextValue: boolean) => Promise<void>;
   startGame: (gameId: GameId) => Promise<boolean>;
   submitAnswer: (answer: string, selectedTokens?: string[]) => void;
   markSupportAction: (action: SupportAction) => void;
@@ -60,6 +65,8 @@ const initialPromptSupportState: PromptSupportState = {
 };
 
 const initialGameState = {
+  speechEnabled: true,
+  settingsLoaded: false,
   currentGameId: null,
   activeSessionId: '',
   prompts: [],
@@ -72,6 +79,37 @@ const initialGameState = {
   sessionStartedAt: '',
   promptSupport: initialPromptSupportState,
 };
+
+const SPEECH_ENABLED_STORAGE_KEY = 'caelum:speech-enabled';
+
+function readSpeechEnabledPreference(): boolean {
+  if (Platform.OS !== 'web' || typeof globalThis.localStorage === 'undefined') {
+    return true;
+  }
+
+  try {
+    const storedValue = globalThis.localStorage.getItem(SPEECH_ENABLED_STORAGE_KEY);
+    if (storedValue === null) {
+      return true;
+    }
+
+    return storedValue === 'true';
+  } catch {
+    return true;
+  }
+}
+
+function writeSpeechEnabledPreference(nextValue: boolean) {
+  if (Platform.OS !== 'web' || typeof globalThis.localStorage === 'undefined') {
+    return;
+  }
+
+  try {
+    globalThis.localStorage.setItem(SPEECH_ENABLED_STORAGE_KEY, String(nextValue));
+  } catch {
+    // Ignore storage failures and keep the in-memory toggle state.
+  }
+}
 
 function shufflePrompts(prompts: PromptTemplate[]) {
   const shuffled = [...prompts];
@@ -149,6 +187,18 @@ function selectSessionPrompts(
 
 export const useGameStore = create<GameState>((set, get) => ({
   ...initialGameState,
+
+  loadAppSettings: async () => {
+    set({
+      speechEnabled: readSpeechEnabledPreference(),
+      settingsLoaded: true,
+    });
+  },
+
+  setSpeechEnabled: async (nextValue) => {
+    set({ speechEnabled: nextValue });
+    writeSpeechEnabledPreference(nextValue);
+  },
 
   startGame: async (gameId) => {
     set({

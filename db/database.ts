@@ -12,6 +12,7 @@ import {
 } from '@/data/seeds/prompts-ranked';
 import { SEED_TARGETS } from '@/data/seeds/targets';
 import {
+  AppSettings,
   ChildProfile,
   GameProgress,
   GameId,
@@ -26,6 +27,22 @@ import {
 } from '@/types';
 
 let db: SQLite.SQLiteDatabase | null = null;
+let dbInitPromise: Promise<SQLite.SQLiteDatabase> | null = null;
+const useWebMemoryStore = Platform.OS === 'web' && process.env.NODE_ENV !== 'production';
+
+type MemoryState = {
+  childProfiles: ChildProfile[];
+  targets: TargetConcept[];
+  prompts: PromptTemplate[];
+  sessions: PracticeSession[];
+  attempts: PromptAttempt[];
+  gameProgress: GameProgress[];
+  speechMappings: SpeechMappingExample[];
+  observations: ParentObservation[];
+  settings: AppSettings;
+};
+
+let memoryState: MemoryState | null = null;
 
 function isWebNoModificationAllowedError(error: unknown): boolean {
   if (!(error instanceof Error)) {
@@ -35,6 +52,21 @@ function isWebNoModificationAllowedError(error: unknown): boolean {
   return (
     message.includes('nomodificationallowederror') ||
     message.includes('no modification allowed')
+  );
+}
+
+function isWebStorageUnavailableError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  return (
+    isWebNoModificationAllowedError(error) ||
+    message.includes('unable to open database file') ||
+    message.includes('cannot create file') ||
+    message.includes('invalid vfs state') ||
+    message.includes('error code 14')
   );
 }
 
@@ -148,6 +180,12 @@ interface MaxLevelRow {
   maxLevel: number | null;
 }
 
+interface AppSettingRow {
+  setting_key: string;
+  setting_value: string;
+  updated_at: string;
+}
+
 const TABLE_CREATION_SQL = [
   `CREATE TABLE IF NOT EXISTS child_profiles (
     child_id TEXT PRIMARY KEY,
@@ -237,6 +275,11 @@ const TABLE_CREATION_SQL = [
     updated_at TEXT NOT NULL,
     PRIMARY KEY (child_id, game_id)
   );`,
+  `CREATE TABLE IF NOT EXISTS app_settings (
+    setting_key TEXT PRIMARY KEY,
+    setting_value TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );`,
 ];
 
 function parseStringArray(raw: string): string[] {
@@ -245,6 +288,55 @@ function parseStringArray(raw: string): string[] {
     return [];
   }
   return parsed.filter((item): item is string => typeof item === 'string');
+}
+
+function clonePrompt(prompt: PromptTemplate): PromptTemplate {
+  return {
+    ...prompt,
+    target_ids: [...prompt.target_ids],
+    answer_options: [...prompt.answer_options],
+  };
+}
+
+function cloneAttempt(attempt: PromptAttempt): PromptAttempt {
+  return {
+    ...attempt,
+    target_ids: [...attempt.target_ids],
+    selected_tokens_json: attempt.selected_tokens_json
+      ? [...attempt.selected_tokens_json]
+      : undefined,
+  };
+}
+
+function ensureMemoryState(): MemoryState {
+  if (memoryState) {
+    return memoryState;
+  }
+
+  const now = new Date().toISOString();
+  memoryState = {
+    childProfiles: [
+      {
+        child_id: 'child_01',
+        display_name: 'Caelum',
+        created_at: now,
+        updated_at: now,
+      },
+    ],
+    targets: SEED_TARGETS.map((target) => ({ ...target })),
+    prompts: getSeedPrompts().map(clonePrompt),
+    sessions: [],
+    attempts: [],
+    gameProgress: [],
+    speechMappings: [],
+    observations: [],
+    settings: {
+      speech_enabled: true,
+      updated_at: now,
+    },
+  };
+
+  return memoryState;
 }
 
 function toPromptTemplate(row: PromptRow): PromptTemplate {
@@ -451,6 +543,11 @@ async function seedIfFirstRun(database: SQLite.SQLiteDatabase): Promise<void> {
   );
 
   await upsertSeedContent(database);
+  await database.runAsync(
+    `INSERT OR IGNORE INTO app_settings (setting_key, setting_value, updated_at)
+     VALUES ('speech_enabled', 'true', ?);`,
+    now
+  );
 }
 
 async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
@@ -555,36 +652,71 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     await database.execAsync('PRAGMA user_version = 7;');
   }
 
-  await database.execAsync('PRAGMA user_version = 7;');
+  if (currentVersion < 8) {
+    await database.execAsync(`CREATE TABLE IF NOT EXISTS app_settings (
+      setting_key TEXT PRIMARY KEY,
+      setting_value TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );`);
+    await database.runAsync(
+      `INSERT OR IGNORE INTO app_settings (setting_key, setting_value, updated_at)
+       VALUES ('speech_enabled', 'true', ?);`,
+      new Date().toISOString()
+    );
+    await database.execAsync('PRAGMA user_version = 8;');
+  }
+
+  await database.execAsync('PRAGMA user_version = 8;');
   await seedIfFirstRun(database);
 }
 
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
+  if (useWebMemoryStore) {
+    ensureMemoryState();
+    return null as unknown as SQLite.SQLiteDatabase;
+  }
+
   if (db) {
     return db;
   }
 
-  try {
-    const openedDb = await SQLite.openDatabaseAsync('caelum.db');
-    await runMigrations(openedDb);
-    db = openedDb;
-    return db;
-  } catch (error) {
-    if (Platform.OS !== 'web' || !isWebNoModificationAllowedError(error)) {
-      throw error;
-    }
-
-    console.warn(
-      '[db] Web persistent storage unavailable (NoModificationAllowedError). Falling back to in-memory SQLite for this session.'
-    );
-    const fallbackDb = await SQLite.openDatabaseAsync(':memory:');
-    await runMigrations(fallbackDb);
-    db = fallbackDb;
-    return db;
+  if (dbInitPromise) {
+    return dbInitPromise;
   }
+
+  dbInitPromise = (async () => {
+    try {
+      const openedDb = await SQLite.openDatabaseAsync('caelum.db');
+      await runMigrations(openedDb);
+      db = openedDb;
+      return openedDb;
+    } catch (error) {
+      if (Platform.OS !== 'web' || !isWebStorageUnavailableError(error)) {
+        throw error;
+      }
+
+      console.warn(
+        '[db] Web persistent SQLite unavailable. Falling back to in-memory SQLite for this session.'
+      );
+      const fallbackDb = await SQLite.openDatabaseAsync(':memory:');
+      await runMigrations(fallbackDb);
+      db = fallbackDb;
+      return fallbackDb;
+    } finally {
+      dbInitPromise = null;
+    }
+  })();
+
+  return dbInitPromise;
 }
 
 export async function getTargets(): Promise<TargetConcept[]> {
+  if (useWebMemoryStore) {
+    return [...ensureMemoryState().targets].sort(
+      (a, b) => a.difficulty_order - b.difficulty_order
+    );
+  }
+
   const database = await getDatabase();
   const rows = await database.getAllAsync<TargetRow>(
     'SELECT * FROM target_concepts ORDER BY difficulty_order ASC;'
@@ -593,6 +725,13 @@ export async function getTargets(): Promise<TargetConcept[]> {
 }
 
 export async function getTargetsByGame(gameId: GameId): Promise<TargetConcept[]> {
+  if (useWebMemoryStore) {
+    return ensureMemoryState()
+      .targets
+      .filter((target) => target.game_id === gameId)
+      .sort((a, b) => a.difficulty_order - b.difficulty_order);
+  }
+
   const database = await getDatabase();
   const rows = await database.getAllAsync<TargetRow>(
     'SELECT * FROM target_concepts WHERE game_id = ? ORDER BY difficulty_order ASC;',
@@ -602,6 +741,14 @@ export async function getTargetsByGame(gameId: GameId): Promise<TargetConcept[]>
 }
 
 export async function getEnabledTargetIdsByGame(gameId: GameId): Promise<string[]> {
+  if (useWebMemoryStore) {
+    return ensureMemoryState()
+      .targets
+      .filter((target) => target.game_id === gameId && target.status === 'enabled')
+      .sort((a, b) => a.difficulty_order - b.difficulty_order)
+      .map((target) => target.target_id);
+  }
+
   const database = await getDatabase();
   const rows = await database.getAllAsync<Pick<TargetRow, 'target_id'>>(
     `SELECT target_id FROM target_concepts
@@ -613,6 +760,16 @@ export async function getEnabledTargetIdsByGame(gameId: GameId): Promise<string[
 }
 
 export async function updateTargetStatus(targetId: string, status: TargetStatus): Promise<void> {
+  if (useWebMemoryStore) {
+    const state = ensureMemoryState();
+    state.targets = state.targets.map((target) =>
+      target.target_id === targetId
+        ? { ...target, status, updated_at: new Date().toISOString() }
+        : target
+    );
+    return;
+  }
+
   const database = await getDatabase();
   await database.runAsync(
     'UPDATE target_concepts SET status = ?, updated_at = ? WHERE target_id = ?;',
@@ -622,7 +779,66 @@ export async function updateTargetStatus(targetId: string, status: TargetStatus)
   );
 }
 
+export async function getAppSettings(): Promise<AppSettings> {
+  if (useWebMemoryStore) {
+    return { ...ensureMemoryState().settings };
+  }
+
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<AppSettingRow>(
+    `SELECT setting_key, setting_value, updated_at
+     FROM app_settings
+     WHERE setting_key = 'speech_enabled';`
+  );
+
+  if (!row) {
+    const now = new Date().toISOString();
+    await database.runAsync(
+      `INSERT INTO app_settings (setting_key, setting_value, updated_at)
+       VALUES ('speech_enabled', 'true', ?);`,
+      now
+    );
+    return {
+      speech_enabled: true,
+      updated_at: now,
+    };
+  }
+
+  return {
+    speech_enabled: row.setting_value === 'true',
+    updated_at: row.updated_at,
+  };
+}
+
+export async function updateSpeechEnabled(speechEnabled: boolean): Promise<void> {
+  if (useWebMemoryStore) {
+    ensureMemoryState().settings = {
+      speech_enabled: speechEnabled,
+      updated_at: new Date().toISOString(),
+    };
+    return;
+  }
+
+  const database = await getDatabase();
+  await database.runAsync(
+    `INSERT INTO app_settings (setting_key, setting_value, updated_at)
+     VALUES ('speech_enabled', ?, ?)
+     ON CONFLICT(setting_key) DO UPDATE SET
+       setting_value = excluded.setting_value,
+       updated_at = excluded.updated_at;`,
+    speechEnabled ? 'true' : 'false',
+    new Date().toISOString()
+  );
+}
+
 export async function getPromptsByGame(gameId: GameId): Promise<PromptTemplate[]> {
+  if (useWebMemoryStore) {
+    return ensureMemoryState()
+      .prompts
+      .filter((prompt) => prompt.game_id === gameId)
+      .map(clonePrompt);
+  }
+
   const database = await getDatabase();
   const rows = await database.getAllAsync<PromptRow>(
     'SELECT * FROM prompt_templates WHERE game_id = ?;',
@@ -632,6 +848,13 @@ export async function getPromptsByGame(gameId: GameId): Promise<PromptTemplate[]
 }
 
 export async function getEnabledPromptsByGame(gameId: GameId): Promise<PromptTemplate[]> {
+  if (useWebMemoryStore) {
+    return ensureMemoryState()
+      .prompts
+      .filter((prompt) => prompt.game_id === gameId && prompt.enabled)
+      .map(clonePrompt);
+  }
+
   const database = await getDatabase();
   const rows = await database.getAllAsync<PromptRow>(
     'SELECT * FROM prompt_templates WHERE game_id = ? AND enabled = 1;',
@@ -647,6 +870,20 @@ export async function getPromptsForGameLevels(
 ): Promise<PromptTemplate[]> {
   if (levelNumbers.length === 0) {
     return [];
+  }
+
+  if (useWebMemoryStore) {
+    return ensureMemoryState()
+      .prompts
+      .filter(
+        (prompt) =>
+          prompt.game_id === gameId &&
+          prompt.enabled &&
+          levelNumbers.includes(prompt.difficulty_level) &&
+          (enabledTargetIds.length === 0 ||
+            prompt.target_ids.some((targetId) => enabledTargetIds.includes(targetId)))
+      )
+      .map(clonePrompt);
   }
 
   const database = await getDatabase();
@@ -672,6 +909,15 @@ export async function getPromptsForGameLevels(
 }
 
 export async function saveSession(session: PracticeSession): Promise<void> {
+  if (useWebMemoryStore) {
+    const state = ensureMemoryState();
+    state.sessions = [
+      ...state.sessions.filter((item) => item.session_id !== session.session_id),
+      { ...session },
+    ];
+    return;
+  }
+
   const database = await getDatabase();
   await database.runAsync(
     `INSERT OR REPLACE INTO practice_sessions (
@@ -700,6 +946,14 @@ export async function saveSession(session: PracticeSession): Promise<void> {
 }
 
 export async function getGameProgress(childId: string, gameId: GameId): Promise<GameProgress | null> {
+  if (useWebMemoryStore) {
+    return (
+      ensureMemoryState().gameProgress.find(
+        (item) => item.child_id === childId && item.game_id === gameId
+      ) ?? null
+    );
+  }
+
   const database = await getDatabase();
   const row = await database.getFirstAsync<GameProgressRow>(
     'SELECT * FROM game_progress WHERE child_id = ? AND game_id = ?;',
@@ -710,6 +964,17 @@ export async function getGameProgress(childId: string, gameId: GameId): Promise<
 }
 
 export async function upsertGameProgress(progress: GameProgress): Promise<void> {
+  if (useWebMemoryStore) {
+    const state = ensureMemoryState();
+    state.gameProgress = [
+      ...state.gameProgress.filter(
+        (item) => !(item.child_id === progress.child_id && item.game_id === progress.game_id)
+      ),
+      { ...progress },
+    ];
+    return;
+  }
+
   const database = await getDatabase();
   await database.runAsync(
     `INSERT OR REPLACE INTO game_progress (
@@ -730,6 +995,12 @@ export async function upsertGameProgress(progress: GameProgress): Promise<void> 
 }
 
 export async function getRecentSessions(limit = 20): Promise<PracticeSession[]> {
+  if (useWebMemoryStore) {
+    return [...ensureMemoryState().sessions]
+      .sort((a, b) => b.started_at.localeCompare(a.started_at))
+      .slice(0, limit);
+  }
+
   const database = await getDatabase();
   const rows = await database.getAllAsync<SessionRow>(
     'SELECT * FROM practice_sessions ORDER BY started_at DESC LIMIT ?;',
@@ -739,6 +1010,15 @@ export async function getRecentSessions(limit = 20): Promise<PracticeSession[]> 
 }
 
 export async function saveAttempt(attempt: PromptAttempt): Promise<void> {
+  if (useWebMemoryStore) {
+    const state = ensureMemoryState();
+    state.attempts = [
+      ...state.attempts.filter((item) => item.attempt_id !== attempt.attempt_id),
+      cloneAttempt(attempt),
+    ];
+    return;
+  }
+
   const database = await getDatabase();
   await database.runAsync(
     `INSERT OR REPLACE INTO prompt_attempts (
@@ -791,6 +1071,13 @@ export async function saveAttempt(attempt: PromptAttempt): Promise<void> {
 }
 
 export async function saveAttempts(attempts: PromptAttempt[]): Promise<void> {
+  if (useWebMemoryStore) {
+    for (const attempt of attempts) {
+      await saveAttempt(attempt);
+    }
+    return;
+  }
+
   const database = await getDatabase();
   await database.withTransactionAsync(async () => {
     for (const attempt of attempts) {
@@ -800,6 +1087,14 @@ export async function saveAttempts(attempts: PromptAttempt[]): Promise<void> {
 }
 
 export async function getAttemptsBySession(sessionId: string): Promise<PromptAttempt[]> {
+  if (useWebMemoryStore) {
+    return ensureMemoryState()
+      .attempts
+      .filter((attempt) => attempt.session_id === sessionId)
+      .sort((a, b) => a.created_at.localeCompare(b.created_at))
+      .map(cloneAttempt);
+  }
+
   const database = await getDatabase();
   const rows = await database.getAllAsync<AttemptRow>(
     'SELECT * FROM prompt_attempts WHERE session_id = ? ORDER BY created_at ASC;',
@@ -814,6 +1109,28 @@ export async function getWeeklyStats(): Promise<{
   speechMatched: number;
   supportUsed: number;
 }> {
+  if (useWebMemoryStore) {
+    const weeklyCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const recentAttempts = ensureMemoryState().attempts.filter(
+      (attempt) => attempt.created_at >= weeklyCutoff
+    );
+    return {
+      totalPrompts: recentAttempts.length,
+      touchCorrect: recentAttempts.filter(
+        (attempt) => attempt.input_mode === 'touch' && attempt.was_correct_for_prompt
+      ).length,
+      speechMatched: recentAttempts.filter(
+        (attempt) =>
+          attempt.input_mode === 'speech' &&
+          attempt.model_top_guess === attempt.final_interpreted_answer
+      ).length,
+      supportUsed: recentAttempts.reduce(
+        (total, attempt) => total + (attempt.support_action_count ?? 0),
+        0
+      ),
+    };
+  }
+
   const database = await getDatabase();
   const weeklyCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const row = await database.getFirstAsync<WeeklyStatsRow>(
@@ -836,6 +1153,14 @@ export async function getWeeklyStats(): Promise<{
 }
 
 export async function getGameMaxLevel(gameId: GameId): Promise<number> {
+  if (useWebMemoryStore) {
+    const levels = ensureMemoryState()
+      .prompts
+      .filter((prompt) => prompt.game_id === gameId && prompt.enabled)
+      .map((prompt) => prompt.difficulty_level);
+    return Math.max(1, ...levels);
+  }
+
   const database = await getDatabase();
   const row = await database.getFirstAsync<MaxLevelRow>(
     'SELECT MAX(difficulty_level) AS maxLevel FROM prompt_templates WHERE game_id = ? AND enabled = 1;',
@@ -845,6 +1170,13 @@ export async function getGameMaxLevel(gameId: GameId): Promise<number> {
 }
 
 export async function getSpeechMappings(childId?: string): Promise<SpeechMappingExample[]> {
+  if (useWebMemoryStore) {
+    const rows = childId
+      ? ensureMemoryState().speechMappings.filter((item) => item.child_id === childId)
+      : ensureMemoryState().speechMappings;
+    return [...rows].sort((a, b) => b.last_seen_at.localeCompare(a.last_seen_at));
+  }
+
   const database = await getDatabase();
   const rows = childId
     ? await database.getAllAsync<SpeechMappingRow>(
@@ -858,6 +1190,15 @@ export async function getSpeechMappings(childId?: string): Promise<SpeechMapping
 }
 
 export async function saveSpeechMapping(mapping: SpeechMappingExample): Promise<void> {
+  if (useWebMemoryStore) {
+    const state = ensureMemoryState();
+    state.speechMappings = [
+      ...state.speechMappings.filter((item) => item.mapping_id !== mapping.mapping_id),
+      { ...mapping },
+    ];
+    return;
+  }
+
   const database = await getDatabase();
   await database.runAsync(
     `INSERT OR REPLACE INTO speech_mapping_examples (
@@ -884,6 +1225,15 @@ export async function saveSpeechMapping(mapping: SpeechMappingExample): Promise<
 }
 
 export async function saveObservation(observation: ParentObservation): Promise<void> {
+  if (useWebMemoryStore) {
+    const state = ensureMemoryState();
+    state.observations = [
+      ...state.observations.filter((item) => item.observation_id !== observation.observation_id),
+      { ...observation },
+    ];
+    return;
+  }
+
   const database = await getDatabase();
   await database.runAsync(
     `INSERT OR REPLACE INTO parent_observations (
@@ -902,6 +1252,13 @@ export async function saveObservation(observation: ParentObservation): Promise<v
 }
 
 export async function getObservations(childId?: string): Promise<ParentObservation[]> {
+  if (useWebMemoryStore) {
+    const rows = childId
+      ? ensureMemoryState().observations.filter((item) => item.child_id === childId)
+      : ensureMemoryState().observations;
+    return [...rows].sort((a, b) => b.observed_at.localeCompare(a.observed_at));
+  }
+
   const database = await getDatabase();
   const rows = childId
     ? await database.getAllAsync<ObservationRow>(
@@ -915,6 +1272,14 @@ export async function getObservations(childId?: string): Promise<ParentObservati
 }
 
 export async function getCorrectedAttempts(): Promise<PromptAttempt[]> {
+  if (useWebMemoryStore) {
+    return ensureMemoryState()
+      .attempts
+      .filter((attempt) => attempt.was_parent_corrected)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .map(cloneAttempt);
+  }
+
   const database = await getDatabase();
   const rows = await database.getAllAsync<AttemptRow>(
     'SELECT * FROM prompt_attempts WHERE was_parent_corrected = 1 ORDER BY created_at DESC;'

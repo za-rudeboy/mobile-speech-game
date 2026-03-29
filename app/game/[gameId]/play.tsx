@@ -160,6 +160,7 @@ export default function GamePlayScreen() {
   const markSupportAction = useGameStore((state) => state.markSupportAction);
   const markPromptReplay = useGameStore((state) => state.markPromptReplay);
   const resetPromptSupport = useGameStore((state) => state.resetPromptSupport);
+  const speechEnabled = useGameStore((state) => state.speechEnabled);
   const resolvedGameId = Array.isArray(gameId) ? gameId[0] : gameId;
   const currentPrompt = prompts[currentPromptIndex];
   const [supportCardMode, setSupportCardMode] = useState<SupportCardMode>(null);
@@ -213,18 +214,36 @@ export default function GamePlayScreen() {
   }, [currentGameId, gamePhase, prompts.length, resolvedGameId, router]);
 
   useEffect(() => {
+    if (!speechEnabled) {
+      Speech.stop();
+    }
+  }, [speechEnabled]);
+
+  useEffect(() => {
     if (!currentPrompt || gamePhase !== 'playing') {
       return;
     }
 
     setSupportCardMode(null);
     resetPromptSupport();
+    if (!speechEnabled) {
+      Speech.stop();
+      return;
+    }
+
     Speech.stop();
     Speech.speak(resolvedSpokenText, {
       rate: 0.85,
       pitch: 1,
     });
-  }, [currentPrompt?.prompt_id, gamePhase, resetPromptSupport, resolvedSpokenText, currentPrompt]);
+  }, [
+    currentPrompt?.prompt_id,
+    gamePhase,
+    resetPromptSupport,
+    resolvedSpokenText,
+    currentPrompt,
+    speechEnabled,
+  ]);
 
   if (!currentPrompt || gamePhase !== 'playing') {
     return <ThemedView style={styles.container} />;
@@ -238,6 +257,10 @@ export default function GamePlayScreen() {
 
   const replayPrompt = () => {
     markPromptReplay();
+    if (!speechEnabled) {
+      Speech.stop();
+      return;
+    }
     Speech.stop();
     Speech.speak(resolvedSpokenText, {
       rate: 0.85,
@@ -301,6 +324,10 @@ export default function GamePlayScreen() {
           onPress={() => {
             markSupportAction('show_me_again');
             setSupportCardMode('hint');
+            if (!speechEnabled) {
+              Speech.stop();
+              return;
+            }
             Speech.stop();
             Speech.speak(resolvedSpokenText, {
               rate: 0.85,

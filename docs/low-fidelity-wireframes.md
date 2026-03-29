@@ -27,7 +27,7 @@ The MVP needs these screens:
 Purpose:
 - let him start quickly
 - keep the app visually calm
-- show only the 3 mini-games
+- show a short ranked list of activities
 
 ```text
 +--------------------------------------------------+
@@ -47,8 +47,8 @@ Purpose:
 | +----------------------------------------------+ |
 |                                                  |
 | +----------------------------------------------+ |
-| | Which Is Bigger?                             | |
-| | big, small, same, different, more            | |
+| | Daily Phrase Practice                        | |
+| | help me, all done, I want                    | |
 | |                    [Start]                   | |
 | +----------------------------------------------+ |
 +--------------------------------------------------+
@@ -123,16 +123,18 @@ Purpose:
 +--------------------------------------------------+
 ```
 
-### Example: Which Is Bigger?
+### Example: Daily Phrase Practice
 ```text
 +--------------------------------------------------+
 | [Back]                            Prompt 1 of 6  |
 |                                                  |
-|          [ small ball ]   [ big ball ]           |
+|          [ child ]   [ banana ]                  |
 |                                                  |
-|               Point to the big one               |
+|               What can Caelum say?               |
 |                                                  |
-|         child taps object directly               |
+|      +----------------+  +----------------+      |
+|      | I want banana  |  |    all done    |      |
+|      +----------------+  +----------------+      |
 |                                                  |
 |                    [Mic]                         |
 +--------------------------------------------------+
@@ -208,9 +210,9 @@ Purpose:
 | [x] in     [x] on     [ ] under  [ ] next to     |
 | [ ] where  [ ] which                             |
 |                                                  |
-| Which Is Bigger?                                 |
-| [x] big    [x] small  [ ] bigger [ ] same        |
-| [ ] different       [ ] more                     |
+| Daily Phrase Practice                            |
+| [x] help me  [x] all done  [x] I want            |
+| [ ] my hand hurts                                |
 |                                                  |
 |                 [Save]                           |
 +--------------------------------------------------+
@@ -231,7 +233,7 @@ Purpose:
 |                                                  |
 | "mah tuhn"  ->  my turn      4 times            |
 | "nuh to"    ->  next to      2 times            |
-| "bee"       ->  big          3 times            |
+| "hep"       ->  help me      3 times           |
 |                                                  |
 | tap item for examples and notes                  |
 +--------------------------------------------------+

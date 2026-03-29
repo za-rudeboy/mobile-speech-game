@@ -1,7 +1,7 @@
 # Project Summary
 
 ## What We Are Trying To Achieve
-This project is exploring a custom mobile app to support language development for a 7-year-old autistic child with speech delays.
+This project is exploring a custom mobile app to support language development for a 6-year-old autistic child with speech and language delays.
 
 The app is not intended to be:
 - a replacement for speech therapy
@@ -23,7 +23,7 @@ The core idea is to build something that can:
 - gradually improve at understanding this child's recurring speech patterns
 
 ## Product Direction
-The current direction is an MVP with three short mini-games focused on language concepts rather than object naming.
+The current direction is an MVP with a ranked set of short activities focused on language concepts and functional communication rather than object naming.
 
 The app should:
 - always allow touch as a fallback
@@ -45,15 +45,22 @@ That makes the problem smaller and more realistic:
 ## MVP Shape
 The current MVP shape is:
 
-1. `My Turn / Your Turn`
-2. `Where Is It?`
-3. `Which Is Bigger?`
+1. `Where Is It?`
+2. `Daily Phrase Practice`
+3. `Do What I Say`
+4. `My Turn / Your Turn`
+5. `Build The Sentence`
+6. `Picture Questions`
+7. `Movement Search`
 
-These games focus on concepts such as:
-- pronouns and possession
+These activities focus on concepts such as:
 - location words
-- comparison words
+- functional phrases
+- simple directions
+- pronouns and possession
 - basic question understanding
+
+The newer [Ranked Implementation Plan](./ranked-implementation-plan.md) is the source of truth for build order. It keeps the same reusable route shell, but prioritizes `Where Is It?`, shared support controls, and functional phrase practice ahead of lower-value content.
 
 ## Audio Direction
 Audio is part of the plan, but in a narrow way.
@@ -87,11 +94,14 @@ The app should avoid:
 
 ### Core Product Notes
 - [Language Target List](./language-target-list.md)
+- [Practical Activity Backlog](./app-activity-backlog.md)
+- [Ranked Implementation Plan](./ranked-implementation-plan.md)
 - [MVP Mini-Games](./mvp-mini-games.md)
 - [MVP V1 Level Progression And Copy Sheet](./mvp-v1-level-progression-and-copy.md)
 - [MVP V1 Copy Keys (JSON)](./mvp-v1-copy-keys.json)
 - [Low-Fidelity Wireframes](./low-fidelity-wireframes.md)
 - [Data Model And Learning Loop](./data-model-and-learning-loop.md)
+- [Sources](./sources.md)
 
 ### Audio Notes
 - [Audio Strategy](./audio-strategy.md)
@@ -104,11 +114,14 @@ If coming back to this later, read in this order:
 
 1. [Project Summary](./project-summary.md)
 2. [Language Target List](./language-target-list.md)
-3. [MVP Mini-Games](./mvp-mini-games.md)
-4. [MVP V1 Level Progression And Copy Sheet](./mvp-v1-level-progression-and-copy.md)
-5. [Low-Fidelity Wireframes](./low-fidelity-wireframes.md)
-6. [Audio Strategy](./audio-strategy.md)
-7. [Data Model And Learning Loop](./data-model-and-learning-loop.md)
+3. [Practical Activity Backlog](./app-activity-backlog.md)
+4. [Ranked Implementation Plan](./ranked-implementation-plan.md)
+5. [MVP Mini-Games](./mvp-mini-games.md)
+6. [MVP V1 Level Progression And Copy Sheet](./mvp-v1-level-progression-and-copy.md)
+7. [Low-Fidelity Wireframes](./low-fidelity-wireframes.md)
+8. [Audio Strategy](./audio-strategy.md)
+9. [Data Model And Learning Loop](./data-model-and-learning-loop.md)
+10. [Sources](./sources.md)
 
 ## Current State
 The product concept is now defined enough to support a technical design phase when ready.

@@ -41,7 +41,7 @@ Recommended behavior:
 Example:
 - `My Turn / Your Turn`
 - `Where Is It?`
-- `Which Is Bigger?`
+- `Daily Phrase Practice`
 
 Do not:
 - autoplay all game labels in sequence
@@ -60,7 +60,7 @@ Recommended behavior:
 Example spoken lines:
 - `Let's practice turns.`
 - `Let's find where things go.`
-- `Let's look for the bigger one.`
+- `Let's practice a helpful phrase.`
 
 Preferred source:
 - recorded parent clip or short TTS fallback
@@ -77,7 +77,7 @@ Recommended behavior:
 Examples:
 - `Whose turn?`
 - `Where is the car?`
-- `Point to the big one.`
+- `Say the helpful phrase.`
 
 ### Child Response Options
 The child should always see two ways to answer:

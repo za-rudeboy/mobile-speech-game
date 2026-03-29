@@ -4,11 +4,11 @@ import { ScrollView, StyleSheet, Switch, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { GAME_IDS, GAME_META } from '@/data/constants';
+import { GAME_META, HOME_GAME_ORDER } from '@/data/constants';
 import { getGameProgress, getTargets, updateTargetStatus } from '@/db';
 import type { GameId, GameProgress, TargetConcept } from '@/types';
 
-const GAME_ORDER: GameId[] = ['my_turn_your_turn', 'where_is_it', 'which_is_bigger'];
+const GAME_ORDER: GameId[] = [...HOME_GAME_ORDER];
 
 export default function TargetsScreen() {
   const [targets, setTargets] = useState<TargetConcept[]>([]);
@@ -16,18 +16,16 @@ export default function TargetsScreen() {
   const [gameProgressMap, setGameProgressMap] = useState<Record<string, GameProgress | null>>({});
 
   const loadTargets = useCallback(async () => {
-    const [loadedTargets, g1, g2, g3] = await Promise.all([
+    const [loadedTargets, ...progressRows] = await Promise.all([
       getTargets(),
-      getGameProgress('child_01', GAME_IDS.MY_TURN_YOUR_TURN),
-      getGameProgress('child_01', GAME_IDS.WHERE_IS_IT),
-      getGameProgress('child_01', GAME_IDS.WHICH_IS_BIGGER),
+      ...GAME_ORDER.map((gameId) => getGameProgress('child_01', gameId)),
     ]);
     setTargets(loadedTargets);
-    setGameProgressMap({
-      [GAME_IDS.MY_TURN_YOUR_TURN]: g1,
-      [GAME_IDS.WHERE_IS_IT]: g2,
-      [GAME_IDS.WHICH_IS_BIGGER]: g3,
-    });
+    const nextProgressMap = GAME_ORDER.reduce<Record<string, GameProgress | null>>((accumulator, gameId, index) => {
+      accumulator[gameId] = progressRows[index] ?? null;
+      return accumulator;
+    }, {});
+    setGameProgressMap(nextProgressMap);
   }, []);
 
   useFocusEffect(
@@ -40,7 +38,11 @@ export default function TargetsScreen() {
     const grouped: Record<GameId, TargetConcept[]> = {
       my_turn_your_turn: [],
       where_is_it: [],
-      which_is_bigger: [],
+      daily_phrase_practice: [],
+      do_what_i_say: [],
+      build_the_sentence: [],
+      picture_questions: [],
+      movement_search: [],
     };
 
     for (const target of targets) {
@@ -92,7 +94,7 @@ export default function TargetsScreen() {
                 {gameMeta.title}
               </ThemedText>
               <ThemedText style={styles.levelSubtitle}>
-                Current level: {gameProgressMap[gameId]?.current_level ?? 1} of 4
+                Current level: {gameProgressMap[gameId]?.current_level ?? 1}
               </ThemedText>
 
               {gameTargets.map((target) => {

@@ -1,7 +1,7 @@
 # Language Target List
 
 ## Purpose
-This list is for a custom parent-guided language support app for a 7-year-old autistic child with speech delays. The focus is not on naming objects he already knows well. The focus is on concepts that are useful in daily life, easier to reinforce outside the app, and likely to improve understanding and communication.
+This list is for a custom parent-guided language support app for a 6-year-old autistic child with speech and language delays. The focus is not on naming objects he already knows well. The focus is on concepts that are useful in daily life, easier to reinforce outside the app, and likely to improve understanding and communication.
 
 ## Selection Rules
 Choose targets that are:

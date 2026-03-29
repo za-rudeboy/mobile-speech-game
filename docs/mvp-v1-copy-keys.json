@@ -56,29 +56,13 @@
       "value": "next to",
       "label": "Next to"
     },
-    "big": {
-      "value": "big",
-      "label": "Big"
+    "help_me": {
+      "value": "help me",
+      "label": "Help me"
     },
-    "small": {
-      "value": "small",
-      "label": "Small"
-    },
-    "bigger": {
-      "value": "bigger",
-      "label": "Bigger"
-    },
-    "same": {
-      "value": "same",
-      "label": "Same"
-    },
-    "different": {
-      "value": "different",
-      "label": "Different"
-    },
-    "more": {
-      "value": "more",
-      "label": "More"
+    "all_done": {
+      "value": "all done",
+      "label": "All done"
     }
   },
   "games": {
@@ -114,21 +98,16 @@
         "car_next_to_block": "The car is next to the block."
       }
     },
-    "which_is_bigger": {
+    "daily_phrase_practice": {
       "prompts": {
-        "show_big": "Show me the big one.",
-        "show_small": "Show me the small one.",
-        "which_bigger": "Which one is bigger?",
-        "same_or_different": "Are they the same or different?",
-        "which_has_more": "Which one has more?"
+        "say_helpful_phrase": "Say the helpful phrase.",
+        "what_can_caelum_say": "What can Caelum say?"
       },
       "feedback": {
-        "is_big": "Yes, this one is big.",
-        "is_small": "Yes, this one is small.",
-        "is_bigger": "Yes, this one is bigger.",
-        "are_same": "They are the same.",
-        "are_different": "They are different.",
-        "has_more": "This one has more."
+        "want_banana": "I want banana.",
+        "help_box": "Help me.",
+        "all_done_puzzle": "All done.",
+        "hand_hurts": "My hand hurts."
       }
     }
   },

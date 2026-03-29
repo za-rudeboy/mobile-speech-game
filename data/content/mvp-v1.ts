@@ -52,30 +52,6 @@ export const MVP_V1_ANSWER_LABELS = {
     value: 'next to',
     label: 'Next to',
   },
-  big: {
-    value: 'big',
-    label: 'Big',
-  },
-  small: {
-    value: 'small',
-    label: 'Small',
-  },
-  bigger: {
-    value: 'bigger',
-    label: 'Bigger',
-  },
-  same: {
-    value: 'same',
-    label: 'Same',
-  },
-  different: {
-    value: 'different',
-    label: 'Different',
-  },
-  more: {
-    value: 'more',
-    label: 'More',
-  },
 } as const;
 
 export const MVP_V1_GAME_COPY = {
@@ -111,21 +87,69 @@ export const MVP_V1_GAME_COPY = {
       car_next_to_block: 'The car is next to the block.',
     },
   },
-  which_is_bigger: {
+  daily_phrase_practice: {
     prompts: {
-      show_big: 'Show me the big one.',
-      show_small: 'Show me the small one.',
-      which_bigger: 'Which one is bigger?',
-      same_or_different: 'Are they the same or different?',
-      which_has_more: 'Which one has more?',
+      default: 'Say the helpful phrase.',
     },
     feedback: {
-      is_big: 'Yes, this one is big.',
-      is_small: 'Yes, this one is small.',
-      is_bigger: 'Yes, this one is bigger.',
-      are_same: 'They are the same.',
-      are_different: 'They are different.',
-      has_more: 'This one has more.',
+      want_banana: 'I want banana.',
+      help_box: 'Help me.',
+      all_done_puzzle: 'All done.',
+      hand_hurts: 'My hand hurts.',
+      want_water: 'I want water.',
+      want_apple: 'I want apple.',
+    },
+  },
+  do_what_i_say: {
+    prompts: {
+      default: 'Follow the direction.',
+    },
+    feedback: {
+      put_in_box: 'Put the apple in the box.',
+      give_dad: 'Give the ball to Dad.',
+      take_hat: 'Take the hat to the bed.',
+      show_car: 'Show me the car.',
+      put_on_table: 'Put the cup on the table.',
+      give_child: 'Give the book to Caelum.',
+    },
+  },
+  build_the_sentence: {
+    prompts: {
+      default: 'Build the sentence.',
+    },
+    feedback: {
+      sentence_want_banana: 'I want banana.',
+      sentence_need_help: 'I need help.',
+      sentence_hand_hurts: 'My hand hurts.',
+      sentence_next_to_box: 'It is next to the box.',
+      sentence_want_water: 'I want water.',
+      sentence_knee_hurts: 'My knee hurts.',
+    },
+  },
+  picture_questions: {
+    prompts: {
+      default: 'Answer the question.',
+    },
+    feedback: {
+      what_banana: 'He is eating banana.',
+      where_car: 'The car is in the box.',
+      who_ball: 'Dad has the ball.',
+      what_book: 'She is holding a book.',
+      where_teddy: 'The teddy is under the blanket.',
+      who_reads: 'Caelum is reading.',
+    },
+  },
+  movement_search: {
+    prompts: {
+      default: 'Move and find it.',
+    },
+    feedback: {
+      find_teddy: 'You found the teddy under the chair.',
+      tap_apple: 'You tapped the apple next to the box.',
+      stand_dad: 'You found Dad.',
+      find_ball: 'You found the ball in the box.',
+      tap_cup: 'You tapped the cup on the table.',
+      find_car: 'You found the car under the chair.',
     },
   },
 } as const;

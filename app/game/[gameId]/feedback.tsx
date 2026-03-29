@@ -1,4 +1,5 @@
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
+import * as Speech from 'expo-speech';
 import { useEffect } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 
@@ -46,6 +47,30 @@ export default function GameFeedbackScreen() {
     }
   }, [currentGameId, gamePhase, prompts.length, resolvedGameId, router]);
 
+  useEffect(() => {
+    if (!currentPrompt || gamePhase !== 'feedback' || lastAnswerCorrect === null) {
+      return;
+    }
+
+    const gameFeedback = MVP_V1_GAME_COPY[currentPrompt.game_id]?.feedback as
+      | Record<string, string>
+      | undefined;
+    const rawFeedbackSentence =
+      currentPrompt.model_phrase ??
+      gameFeedback?.[currentPrompt.feedback_key] ??
+      currentPrompt.correct_answer;
+    const spokenFeedback = resolveCopyTokens(rawFeedbackSentence, {
+      childName: DEFAULT_CHILD_NAME,
+      parentLabel: DEFAULT_PARENT_LABEL,
+    });
+
+    Speech.stop();
+    Speech.speak(spokenFeedback, {
+      rate: 0.85,
+      pitch: 1,
+    });
+  }, [currentPrompt, gamePhase, lastAnswerCorrect]);
+
   if (!currentPrompt || gamePhase !== 'feedback' || lastAnswerCorrect === null) {
     return <ThemedView style={styles.container} />;
   }
@@ -53,7 +78,10 @@ export default function GameFeedbackScreen() {
   const gameFeedback = MVP_V1_GAME_COPY[currentPrompt.game_id]?.feedback as
     | Record<string, string>
     | undefined;
-  const rawFeedbackSentence = gameFeedback?.[currentPrompt.feedback_key] ?? currentPrompt.correct_answer;
+  const rawFeedbackSentence =
+    currentPrompt.model_phrase ??
+    gameFeedback?.[currentPrompt.feedback_key] ??
+    currentPrompt.correct_answer;
   const feedbackSentence = resolveCopyTokens(rawFeedbackSentence, {
     childName: DEFAULT_CHILD_NAME,
     parentLabel: DEFAULT_PARENT_LABEL,

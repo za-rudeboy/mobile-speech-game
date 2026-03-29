@@ -3,7 +3,13 @@ import { Platform } from 'react-native';
 
 import { SEED_PROMPTS_GAME1 } from '@/data/seeds/prompts';
 import { SEED_PROMPTS_GAME2 } from '@/data/seeds/prompts-game2';
-import { SEED_PROMPTS_GAME3 } from '@/data/seeds/prompts-game3';
+import {
+  SEED_PROMPTS_BUILD_THE_SENTENCE,
+  SEED_PROMPTS_DAILY_PHRASE_PRACTICE,
+  SEED_PROMPTS_DO_WHAT_I_SAY,
+  SEED_PROMPTS_MOVEMENT_SEARCH,
+  SEED_PROMPTS_PICTURE_QUESTIONS,
+} from '@/data/seeds/prompts-ranked';
 import { SEED_TARGETS } from '@/data/seeds/targets';
 import {
   ChildProfile,
@@ -14,6 +20,7 @@ import {
   PromptAttempt,
   PromptTemplate,
   SpeechMappingExample,
+  SupportAction,
   TargetConcept,
   TargetStatus,
 } from '@/types';
@@ -59,6 +66,7 @@ interface PromptRow {
   visual_scene_key: string;
   answer_options: string;
   correct_answer: string;
+  model_phrase: string | null;
   enabled: number;
 }
 
@@ -98,6 +106,13 @@ interface AttemptRow {
   final_interpreted_answer: string;
   was_parent_corrected: number;
   was_correct_for_prompt: number;
+  support_action_used: SupportAction | null;
+  support_action_count: number | null;
+  visual_support_level: number | null;
+  model_replay_count: number | null;
+  break_taken: number | null;
+  demo_was_shown: number | null;
+  selected_tokens_json: string | null;
   response_time_ms: number | null;
   created_at: string;
 }
@@ -126,6 +141,11 @@ interface WeeklyStatsRow {
   totalPrompts: number | null;
   touchCorrect: number | null;
   speechMatched: number | null;
+  supportUsed: number | null;
+}
+
+interface MaxLevelRow {
+  maxLevel: number | null;
 }
 
 const TABLE_CREATION_SQL = [
@@ -240,6 +260,7 @@ function toPromptTemplate(row: PromptRow): PromptTemplate {
     visual_scene_key: row.visual_scene_key,
     answer_options: parseStringArray(row.answer_options),
     correct_answer: row.correct_answer,
+    model_phrase: row.model_phrase ?? undefined,
     enabled: Boolean(row.enabled),
   };
 }
@@ -285,6 +306,15 @@ function toPromptAttempt(row: AttemptRow): PromptAttempt {
     final_interpreted_answer: row.final_interpreted_answer,
     was_parent_corrected: Boolean(row.was_parent_corrected),
     was_correct_for_prompt: Boolean(row.was_correct_for_prompt),
+    support_action_used: row.support_action_used ?? undefined,
+    support_action_count: row.support_action_count ?? undefined,
+    visual_support_level: row.visual_support_level ?? undefined,
+    model_replay_count: row.model_replay_count ?? undefined,
+    break_taken: row.break_taken === null ? undefined : Boolean(row.break_taken),
+    demo_was_shown: row.demo_was_shown === null ? undefined : Boolean(row.demo_was_shown),
+    selected_tokens_json: row.selected_tokens_json
+      ? parseStringArray(row.selected_tokens_json)
+      : undefined,
     response_time_ms: row.response_time_ms ?? undefined,
     created_at: row.created_at,
   };
@@ -314,6 +344,78 @@ function toParentObservation(row: ObservationRow): ParentObservation {
   };
 }
 
+function getSeedPrompts(): PromptTemplate[] {
+  return [
+    ...SEED_PROMPTS_GAME1,
+    ...SEED_PROMPTS_GAME2,
+    ...SEED_PROMPTS_DAILY_PHRASE_PRACTICE,
+    ...SEED_PROMPTS_DO_WHAT_I_SAY,
+    ...SEED_PROMPTS_BUILD_THE_SENTENCE,
+    ...SEED_PROMPTS_PICTURE_QUESTIONS,
+    ...SEED_PROMPTS_MOVEMENT_SEARCH,
+  ];
+}
+
+async function upsertSeedContent(database: SQLite.SQLiteDatabase): Promise<void> {
+  for (const target of SEED_TARGETS) {
+    await database.runAsync(
+      `INSERT OR REPLACE INTO target_concepts (
+        target_id,
+        slug,
+        label,
+        category,
+        game_id,
+        status,
+        difficulty_order,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      target.target_id,
+      target.slug,
+      target.label,
+      target.category,
+      target.game_id,
+      target.status,
+      target.difficulty_order,
+      target.created_at,
+      target.updated_at
+    );
+  }
+
+  for (const prompt of getSeedPrompts()) {
+    await database.runAsync(
+      `INSERT OR REPLACE INTO prompt_templates (
+        prompt_id,
+        game_id,
+        target_ids,
+        prompt_type,
+        difficulty_level,
+        prompt_group,
+        feedback_key,
+        spoken_text,
+        visual_scene_key,
+        answer_options,
+        correct_answer,
+        model_phrase,
+        enabled
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      prompt.prompt_id,
+      prompt.game_id,
+      JSON.stringify(prompt.target_ids),
+      prompt.prompt_type,
+      prompt.difficulty_level,
+      prompt.prompt_group,
+      prompt.feedback_key,
+      prompt.spoken_text,
+      prompt.visual_scene_key,
+      JSON.stringify(prompt.answer_options),
+      prompt.correct_answer,
+      prompt.model_phrase ?? null,
+      Number(prompt.enabled)
+    );
+  }
+}
+
 async function seedIfFirstRun(database: SQLite.SQLiteDatabase): Promise<void> {
   const countRow = await database.getFirstAsync<CountRow>('SELECT COUNT(*) as count FROM child_profiles;');
   const count = countRow?.count ?? 0;
@@ -324,7 +426,7 @@ async function seedIfFirstRun(database: SQLite.SQLiteDatabase): Promise<void> {
   const now = new Date().toISOString();
   const defaultChild: ChildProfile = {
     child_id: 'child_01',
-    display_name: 'Kiddo',
+    display_name: 'Caelum',
     created_at: now,
     updated_at: now,
   };
@@ -348,62 +450,7 @@ async function seedIfFirstRun(database: SQLite.SQLiteDatabase): Promise<void> {
     defaultChild.updated_at
   );
 
-  for (const target of SEED_TARGETS) {
-    await database.runAsync(
-      `INSERT INTO target_concepts (
-        target_id,
-        slug,
-        label,
-        category,
-        game_id,
-        status,
-        difficulty_order,
-        created_at,
-        updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-      target.target_id,
-      target.slug,
-      target.label,
-      target.category,
-      target.game_id,
-      target.status,
-      target.difficulty_order,
-      target.created_at,
-      target.updated_at
-    );
-  }
-
-  const prompts = [...SEED_PROMPTS_GAME1, ...SEED_PROMPTS_GAME2, ...SEED_PROMPTS_GAME3];
-  for (const prompt of prompts) {
-    await database.runAsync(
-      `INSERT INTO prompt_templates (
-        prompt_id,
-        game_id,
-        target_ids,
-        prompt_type,
-        difficulty_level,
-        prompt_group,
-        feedback_key,
-        spoken_text,
-        visual_scene_key,
-        answer_options,
-        correct_answer,
-        enabled
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-      prompt.prompt_id,
-      prompt.game_id,
-      JSON.stringify(prompt.target_ids),
-      prompt.prompt_type,
-      prompt.difficulty_level,
-      prompt.prompt_group,
-      prompt.feedback_key,
-      prompt.spoken_text,
-      prompt.visual_scene_key,
-      JSON.stringify(prompt.answer_options),
-      prompt.correct_answer,
-      Number(prompt.enabled)
-    );
-  }
+  await upsertSeedContent(database);
 }
 
 async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
@@ -457,7 +504,58 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     await database.execAsync('PRAGMA user_version = 4;');
   }
 
-  await database.execAsync('PRAGMA user_version = 4;');
+  if (currentVersion < 5) {
+    await database.execAsync(
+      'ALTER TABLE prompt_templates ADD COLUMN model_phrase TEXT;'
+    );
+    await database.execAsync('PRAGMA user_version = 5;');
+  }
+
+  if (currentVersion < 6) {
+    await database.execAsync(
+      'ALTER TABLE prompt_attempts ADD COLUMN support_action_used TEXT;'
+    );
+    await database.execAsync(
+      'ALTER TABLE prompt_attempts ADD COLUMN support_action_count INTEGER NOT NULL DEFAULT 0;'
+    );
+    await database.execAsync(
+      'ALTER TABLE prompt_attempts ADD COLUMN visual_support_level INTEGER NOT NULL DEFAULT 0;'
+    );
+    await database.execAsync(
+      'ALTER TABLE prompt_attempts ADD COLUMN model_replay_count INTEGER NOT NULL DEFAULT 0;'
+    );
+    await database.execAsync(
+      'ALTER TABLE prompt_attempts ADD COLUMN break_taken INTEGER NOT NULL DEFAULT 0;'
+    );
+    await database.execAsync(
+      'ALTER TABLE prompt_attempts ADD COLUMN demo_was_shown INTEGER NOT NULL DEFAULT 0;'
+    );
+    await database.execAsync(
+      'ALTER TABLE prompt_attempts ADD COLUMN selected_tokens_json TEXT;'
+    );
+    await database.execAsync('PRAGMA user_version = 6;');
+  }
+
+  if (currentVersion < 7) {
+    await database.execAsync(
+      `DELETE FROM prompt_attempts
+       WHERE session_id IN (SELECT session_id FROM practice_sessions WHERE game_id = 'which_is_bigger');`
+    );
+    await database.execAsync(`DELETE FROM practice_sessions WHERE game_id = 'which_is_bigger';`);
+    await database.execAsync(`DELETE FROM game_progress WHERE game_id = 'which_is_bigger';`);
+    await database.execAsync(`DELETE FROM target_concepts WHERE game_id = 'which_is_bigger';`);
+    await database.execAsync(`DELETE FROM prompt_templates WHERE game_id = 'which_is_bigger';`);
+    await database.runAsync(
+      `UPDATE child_profiles
+       SET display_name = 'Caelum', updated_at = ?
+       WHERE child_id = 'child_01' AND display_name = 'Kiddo';`,
+      new Date().toISOString()
+    );
+    await upsertSeedContent(database);
+    await database.execAsync('PRAGMA user_version = 7;');
+  }
+
+  await database.execAsync('PRAGMA user_version = 7;');
   await seedIfFirstRun(database);
 }
 
@@ -501,6 +599,17 @@ export async function getTargetsByGame(gameId: GameId): Promise<TargetConcept[]>
     gameId
   );
   return rows;
+}
+
+export async function getEnabledTargetIdsByGame(gameId: GameId): Promise<string[]> {
+  const database = await getDatabase();
+  const rows = await database.getAllAsync<Pick<TargetRow, 'target_id'>>(
+    `SELECT target_id FROM target_concepts
+     WHERE game_id = ? AND status = 'enabled'
+     ORDER BY difficulty_order ASC;`,
+    gameId
+  );
+  return rows.map((row) => row.target_id);
 }
 
 export async function updateTargetStatus(targetId: string, status: TargetStatus): Promise<void> {
@@ -646,9 +755,16 @@ export async function saveAttempt(attempt: PromptAttempt): Promise<void> {
       final_interpreted_answer,
       was_parent_corrected,
       was_correct_for_prompt,
+      support_action_used,
+      support_action_count,
+      visual_support_level,
+      model_replay_count,
+      break_taken,
+      demo_was_shown,
+      selected_tokens_json,
       response_time_ms,
       created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
     attempt.attempt_id,
     attempt.session_id,
     attempt.prompt_id,
@@ -662,6 +778,13 @@ export async function saveAttempt(attempt: PromptAttempt): Promise<void> {
     attempt.final_interpreted_answer,
     Number(attempt.was_parent_corrected),
     Number(attempt.was_correct_for_prompt),
+    attempt.support_action_used ?? null,
+    attempt.support_action_count ?? 0,
+    attempt.visual_support_level ?? 0,
+    attempt.model_replay_count ?? 0,
+    Number(attempt.break_taken ?? false),
+    Number(attempt.demo_was_shown ?? false),
+    JSON.stringify(attempt.selected_tokens_json ?? []),
     attempt.response_time_ms ?? null,
     attempt.created_at
   );
@@ -689,6 +812,7 @@ export async function getWeeklyStats(): Promise<{
   totalPrompts: number;
   touchCorrect: number;
   speechMatched: number;
+  supportUsed: number;
 }> {
   const database = await getDatabase();
   const weeklyCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -696,7 +820,8 @@ export async function getWeeklyStats(): Promise<{
     `SELECT
       COUNT(*) AS totalPrompts,
       SUM(CASE WHEN input_mode = 'touch' AND was_correct_for_prompt = 1 THEN 1 ELSE 0 END) AS touchCorrect,
-      SUM(CASE WHEN input_mode = 'speech' AND model_top_guess = final_interpreted_answer THEN 1 ELSE 0 END) AS speechMatched
+      SUM(CASE WHEN input_mode = 'speech' AND model_top_guess = final_interpreted_answer THEN 1 ELSE 0 END) AS speechMatched,
+      SUM(COALESCE(support_action_count, 0)) AS supportUsed
     FROM prompt_attempts
     WHERE created_at >= ?;`,
     weeklyCutoff
@@ -706,7 +831,17 @@ export async function getWeeklyStats(): Promise<{
     totalPrompts: row?.totalPrompts ?? 0,
     touchCorrect: row?.touchCorrect ?? 0,
     speechMatched: row?.speechMatched ?? 0,
+    supportUsed: row?.supportUsed ?? 0,
   };
+}
+
+export async function getGameMaxLevel(gameId: GameId): Promise<number> {
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<MaxLevelRow>(
+    'SELECT MAX(difficulty_level) AS maxLevel FROM prompt_templates WHERE game_id = ? AND enabled = 1;',
+    gameId
+  );
+  return Math.max(1, row?.maxLevel ?? 1);
 }
 
 export async function getSpeechMappings(childId?: string): Promise<SpeechMappingExample[]> {

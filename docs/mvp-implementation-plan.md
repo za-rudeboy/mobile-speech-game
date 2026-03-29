@@ -38,7 +38,7 @@ Wave 5: expo-speech-recognition, expo-audio
 - Drag interactions (tap-only for all games in v1)
 - Prompt adaptation engine (random selection for now)
 - Phase 2-4 language targets (ship Phase 1 only: `my`, `your`, `in`, `on`, `big`, `small`)
-- "More" (counted groups) prompt type in Which Is Bigger?
+- comparison game removed from current product direction
 - Real illustrations (emoji placeholders for v1)
 
 ---
@@ -133,7 +133,7 @@ Game state lives in Zustand, NOT in navigation params. Routes only receive `game
 
 **Effort:** ~3-5 days. T3 is the critical path. T4 and T5 can be parallelized after T3 is done.
 
-**Milestone: Vertical slice is playable. A 7-year-old can play a game.**
+**Milestone: Vertical slice is playable. A 6-year-old can play a game.**
 
 #### T3. My Turn / Your Turn Game Loop (Touch-Only)
 
@@ -274,20 +274,20 @@ Game state lives in Zustand, NOT in navigation params. Routes only receive `game
 - All prompts render without errors
 - Touch answers work, session completes
 
-#### T12. Which Is Bigger? (Touch-Only)
+#### T12. Daily Phrase Practice (Touch-Only)
 
-**What:** Create 6 prompts for `big`, `small`, `same`, `different` targets. No "more" / counted groups in v1. Visual scenes use differently-sized View shapes (80px vs 140px circles). Screen types: (a) tap the big one, (b) same or different buttons. Enable on Home screen.
+**What:** Create 6 prompts for `help me`, `all done`, `I want ___`, and `my hand hurts`. Screen types: (a) listen and choose the helpful phrase, (b) use a short phrase in a familiar scene. Enable on Home screen.
 
 **Depends on:** T3, T5
 **Blocks:** T13
 
 **QA:**
-- Navigate to Which Is Bigger? from Home
+- Navigate to Daily Phrase Practice from Home
 - Complete 4-prompt session
-- Size difference is visually obvious (>40% ratio)
+- Phrase choices render without errors
 - Session completes, `npm run lint` passes
 
-**Milestone: Full touch-only MVP. All 3 games playable. Parent mode functional.**
+**Milestone: Full touch-only MVP. Top ranked activities playable. Parent mode functional.**
 
 ---
 
@@ -378,7 +378,7 @@ Wave 3 (after Wave 2):
 
 Wave 4 (after Wave 2, parallel with Wave 3 tail):
 |-- T11: Where Is It?
-|-- T12: Which Is Bigger?
+|-- T12: Daily Phrase Practice
 
 Wave 5 (after Wave 4, sequential):
 T13 -> T14 -> T15 -> T16 -> T17

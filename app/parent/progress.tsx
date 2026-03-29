@@ -4,21 +4,18 @@ import { FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { GAME_IDS, GAME_META } from '@/data/constants';
+import { GAME_META, HOME_GAME_ORDER } from '@/data/constants';
 import { getGameProgress, getObservations, getTargets, getWeeklyStats, saveObservation } from '@/db';
 import type { GameId, GameProgress, ParentObservation, TargetConcept } from '@/types';
 
-const GAME_ORDER: GameId[] = [
-  GAME_IDS.MY_TURN_YOUR_TURN,
-  GAME_IDS.WHERE_IS_IT,
-  GAME_IDS.WHICH_IS_BIGGER,
-];
+const GAME_ORDER: GameId[] = [...HOME_GAME_ORDER];
 
 export default function ProgressScreen() {
   const [weeklyStats, setWeeklyStats] = useState({
     totalPrompts: 0,
     touchCorrect: 0,
     speechMatched: 0,
+    supportUsed: 0,
   });
   const [targets, setTargets] = useState<TargetConcept[]>([]);
   const [observations, setObservations] = useState<ParentObservation[]>([]);
@@ -27,23 +24,21 @@ export default function ProgressScreen() {
   const [gameProgressMap, setGameProgressMap] = useState<Record<string, GameProgress | null>>({});
 
   const loadProgressData = useCallback(async () => {
-    const [stats, loadedObservations, loadedTargets, g1, g2, g3] = await Promise.all([
+    const [stats, loadedObservations, loadedTargets, ...progressRows] = await Promise.all([
       getWeeklyStats(),
       getObservations('child_01'),
       getTargets(),
-      getGameProgress('child_01', GAME_IDS.MY_TURN_YOUR_TURN),
-      getGameProgress('child_01', GAME_IDS.WHERE_IS_IT),
-      getGameProgress('child_01', GAME_IDS.WHICH_IS_BIGGER),
+      ...GAME_ORDER.map((gameId) => getGameProgress('child_01', gameId)),
     ]);
 
     setWeeklyStats(stats);
     setObservations(loadedObservations);
     setTargets(loadedTargets);
-    setGameProgressMap({
-      [GAME_IDS.MY_TURN_YOUR_TURN]: g1,
-      [GAME_IDS.WHERE_IS_IT]: g2,
-      [GAME_IDS.WHICH_IS_BIGGER]: g3,
-    });
+    const nextProgressMap = GAME_ORDER.reduce<Record<string, GameProgress | null>>((accumulator, gameId, index) => {
+      accumulator[gameId] = progressRows[index] ?? null;
+      return accumulator;
+    }, {});
+    setGameProgressMap(nextProgressMap);
   }, []);
 
   useFocusEffect(
@@ -151,6 +146,7 @@ export default function ProgressScreen() {
               <ThemedText style={styles.statText}>Practiced: {weeklyStats.totalPrompts} prompts</ThemedText>
               <ThemedText style={styles.statText}>Touch correct: {weeklyStats.touchCorrect}</ThemedText>
               <ThemedText style={styles.statText}>Speech matched: {weeklyStats.speechMatched}</ThemedText>
+              <ThemedText style={styles.statText}>Support taps: {weeklyStats.supportUsed}</ThemedText>
             </View>
 
             <View style={styles.section}>

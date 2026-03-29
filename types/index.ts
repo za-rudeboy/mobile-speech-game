@@ -1,10 +1,33 @@
 // Game identifiers
-export type GameId = 'my_turn_your_turn' | 'where_is_it' | 'which_is_bigger';
-export type TargetCategory = 'pronoun' | 'location' | 'comparison' | 'sequence' | 'question';
+export type GameId =
+  | 'my_turn_your_turn'
+  | 'where_is_it'
+  | 'daily_phrase_practice'
+  | 'do_what_i_say'
+  | 'build_the_sentence'
+  | 'picture_questions'
+  | 'movement_search';
+export type TargetCategory =
+  | 'pronoun'
+  | 'location'
+  | 'functional_phrase'
+  | 'direction'
+  | 'sentence'
+  | 'question';
 export type TargetStatus = 'enabled' | 'later' | 'mastered';
 export type InputMode = 'touch' | 'speech';
-export type PromptType = 'choose_between_two' | 'choose_between_four' | 'tap_object' | 'drag_to_place';
+export type PromptType =
+  | 'choose_between_two'
+  | 'choose_between_four'
+  | 'tap_object'
+  | 'drag_to_place'
+  | 'repeat_and_use'
+  | 'follow_direction'
+  | 'build_sentence'
+  | 'picture_question'
+  | 'movement_search';
 export type GamePhase = 'idle' | 'intro' | 'playing' | 'feedback' | 'complete';
+export type SupportAction = 'help' | 'show_me_again' | 'break' | 'try_again';
 
 export interface ChildProfile {
   child_id: string;
@@ -40,6 +63,7 @@ export interface PromptTemplate {
   visual_scene_key: string;  // emoji or asset key e.g. "🏀"
   answer_options: string[];  // e.g. ["my turn", "your turn"]
   correct_answer: string;    // must be one of answer_options
+  model_phrase?: string;
   enabled: boolean;
 }
 
@@ -79,6 +103,13 @@ export interface PromptAttempt {
   final_interpreted_answer: string;
   was_parent_corrected: boolean;
   was_correct_for_prompt: boolean;
+  support_action_used?: SupportAction;
+  support_action_count?: number;
+  visual_support_level?: number;
+  model_replay_count?: number;
+  break_taken?: boolean;
+  demo_was_shown?: boolean;
+  selected_tokens_json?: string[];
   response_time_ms?: number;
   created_at: string;
 }

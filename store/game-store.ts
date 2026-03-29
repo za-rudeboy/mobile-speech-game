@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 
 import {
+  getEnabledTargetIdsByGame,
+  getGameMaxLevel,
   getGameProgress,
   getPromptsForGameLevels,
   saveAttempts,
@@ -8,7 +10,23 @@ import {
   upsertGameProgress,
 } from '@/db';
 import { DEFAULT_SESSION_PROMPT_COUNT } from '@/data/constants';
-import { GameId, GamePhase, PracticeSession, PromptAttempt, PromptTemplate } from '@/types';
+import {
+  GameId,
+  GamePhase,
+  PracticeSession,
+  PromptAttempt,
+  PromptTemplate,
+  SupportAction,
+} from '@/types';
+
+interface PromptSupportState {
+  lastAction: SupportAction | null;
+  actionCount: number;
+  visualSupportLevel: number;
+  modelReplayCount: number;
+  breakTaken: boolean;
+  demoWasShown: boolean;
+}
 
 interface GameState {
   currentGameId: GameId | null;
@@ -21,12 +39,25 @@ interface GameState {
   currentLevel: number;
   todayPromptCount: number;
   sessionStartedAt: string;
+  promptSupport: PromptSupportState;
   startGame: (gameId: GameId) => Promise<boolean>;
-  submitAnswer: (answer: string) => void;
+  submitAnswer: (answer: string, selectedTokens?: string[]) => void;
+  markSupportAction: (action: SupportAction) => void;
+  markPromptReplay: () => void;
+  resetPromptSupport: () => void;
   nextPrompt: () => void;
   endGame: () => void;
   resetGame: () => void;
 }
+
+const initialPromptSupportState: PromptSupportState = {
+  lastAction: null,
+  actionCount: 0,
+  visualSupportLevel: 0,
+  modelReplayCount: 0,
+  breakTaken: false,
+  demoWasShown: false,
+};
 
 const initialGameState = {
   currentGameId: null,
@@ -39,6 +70,7 @@ const initialGameState = {
   currentLevel: 1,
   todayPromptCount: 0,
   sessionStartedAt: '',
+  promptSupport: initialPromptSupportState,
 };
 
 function shufflePrompts(prompts: PromptTemplate[]) {
@@ -131,19 +163,31 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
 
     try {
-      const gameProgress = await getGameProgress('child_01', gameId);
-      const currentLevel = gameProgress?.current_level ?? 1;
+      const [gameProgress, enabledTargetIds, maxLevel] = await Promise.all([
+        getGameProgress('child_01', gameId),
+        getEnabledTargetIdsByGame(gameId),
+        getGameMaxLevel(gameId),
+      ]);
+
+      if (enabledTargetIds.length === 0) {
+        set({
+          ...initialGameState,
+        });
+        return false;
+      }
+
+      const currentLevel = Math.min(gameProgress?.current_level ?? 1, maxLevel);
       const sessionCount = DEFAULT_SESSION_PROMPT_COUNT;
       let selectedPrompts: PromptTemplate[] = [];
 
       if (currentLevel === 1) {
-        const levelOnePool = await getPromptsForGameLevels(gameId, [1], []);
+        const levelOnePool = await getPromptsForGameLevels(gameId, [1], enabledTargetIds);
         selectedPrompts = shufflePrompts(levelOnePool).slice(0, sessionCount);
       } else {
         const masteredLevels = Array.from({ length: currentLevel - 1 }, (_, index) => index + 1);
         const [masteredPool, newPool] = await Promise.all([
-          getPromptsForGameLevels(gameId, masteredLevels, []),
-          getPromptsForGameLevels(gameId, [currentLevel], []),
+          getPromptsForGameLevels(gameId, masteredLevels, enabledTargetIds),
+          getPromptsForGameLevels(gameId, [currentLevel], enabledTargetIds),
         ]);
         const shuffledMasteredPool = shufflePrompts(masteredPool);
         const shuffledNewPool = shufflePrompts(newPool);
@@ -168,6 +212,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         lastAnswerCorrect: null,
         currentLevel,
         sessionStartedAt: new Date().toISOString(),
+        promptSupport: initialPromptSupportState,
       });
       return true;
     } catch (error) {
@@ -179,7 +224,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
   },
 
-  submitAnswer: (answer) => {
+  submitAnswer: (answer, selectedTokens) => {
     const state = get();
     const currentPrompt = state.prompts[state.currentPromptIndex];
 
@@ -198,6 +243,13 @@ export const useGameStore = create<GameState>((set, get) => ({
       final_interpreted_answer: answer,
       was_parent_corrected: false,
       was_correct_for_prompt: wasCorrect,
+      support_action_used: state.promptSupport.lastAction ?? undefined,
+      support_action_count: state.promptSupport.actionCount,
+      visual_support_level: state.promptSupport.visualSupportLevel,
+      model_replay_count: state.promptSupport.modelReplayCount,
+      break_taken: state.promptSupport.breakTaken,
+      demo_was_shown: state.promptSupport.demoWasShown,
+      selected_tokens_json: selectedTokens,
       created_at: new Date().toISOString(),
     };
 
@@ -205,6 +257,43 @@ export const useGameStore = create<GameState>((set, get) => ({
       sessionResults: [...state.sessionResults, promptAttempt],
       lastAnswerCorrect: wasCorrect,
       gamePhase: 'feedback',
+    });
+  },
+
+  markSupportAction: (action) => {
+    const state = get();
+    set({
+      promptSupport: {
+        lastAction: action,
+        actionCount: state.promptSupport.actionCount + 1,
+        visualSupportLevel:
+          action === 'help' || action === 'show_me_again'
+            ? state.promptSupport.visualSupportLevel + 1
+            : state.promptSupport.visualSupportLevel,
+        modelReplayCount:
+          action === 'show_me_again'
+            ? state.promptSupport.modelReplayCount + 1
+            : state.promptSupport.modelReplayCount,
+        breakTaken: action === 'break' ? true : state.promptSupport.breakTaken,
+        demoWasShown:
+          action === 'show_me_again' ? true : state.promptSupport.demoWasShown,
+      },
+    });
+  },
+
+  markPromptReplay: () => {
+    const state = get();
+    set({
+      promptSupport: {
+        ...state.promptSupport,
+        modelReplayCount: state.promptSupport.modelReplayCount + 1,
+      },
+    });
+  },
+
+  resetPromptSupport: () => {
+    set({
+      promptSupport: initialPromptSupportState,
     });
   },
 
@@ -216,6 +305,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       set({
         currentPromptIndex: nextPromptIndex,
         gamePhase: 'playing',
+        promptSupport: initialPromptSupportState,
       });
       return;
     }
@@ -257,44 +347,50 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     let levelEnded = state.currentLevel;
-    if (maxConsecutiveCorrect >= 3 && accuracy >= 0.8) {
-      levelEnded = Math.min(state.currentLevel + 1, 4);
-    } else if (lastFiveAccuracy < 0.6) {
-      levelEnded = Math.max(state.currentLevel - 1, 1);
-    }
+    const maxLevelPromise = getGameMaxLevel(state.currentGameId);
+    void maxLevelPromise.then((maxLevel) => {
+      let resolvedLevelEnded = state.currentLevel;
+      if (maxConsecutiveCorrect >= 3 && accuracy >= 0.8) {
+        resolvedLevelEnded = Math.min(state.currentLevel + 1, maxLevel);
+      } else if (lastFiveAccuracy < 0.6) {
+        resolvedLevelEnded = Math.max(state.currentLevel - 1, 1);
+      }
 
-    const session: PracticeSession = {
-      session_id: sessionId,
-      child_id: 'child_01',
-      game_id: state.currentGameId,
-      level_started: state.currentLevel,
-      level_ended: levelEnded,
-      accuracy,
-      started_at: state.sessionStartedAt,
-      ended_at: new Date().toISOString(),
-      prompt_count: totalCount,
-    };
+      const session: PracticeSession = {
+        session_id: sessionId,
+        child_id: 'child_01',
+        game_id: state.currentGameId!,
+        level_started: state.currentLevel,
+        level_ended: resolvedLevelEnded,
+        accuracy,
+        started_at: state.sessionStartedAt,
+        ended_at: new Date().toISOString(),
+        prompt_count: totalCount,
+      };
 
-    const attempts = state.sessionResults.map((a) => ({
-      ...a,
-      session_id: sessionId,
-    }));
+      const attempts = state.sessionResults.map((a) => ({
+        ...a,
+        session_id: sessionId,
+      }));
 
-    // Fire and forget — don't await in store action
-    saveSession(session).catch(console.error);
-    saveAttempts(attempts).catch(console.error);
-    getGameProgress('child_01', state.currentGameId)
-      .then((existingProgress) =>
-        upsertGameProgress({
-          child_id: 'child_01',
-          game_id: state.currentGameId!,
-          current_level: levelEnded,
-          highest_level_unlocked: Math.max(levelEnded, existingProgress?.highest_level_unlocked ?? 1),
-          last_session_accuracy: accuracy,
-          updated_at: new Date().toISOString(),
-        })
-      )
-      .catch(console.error);
+      saveSession(session).catch(console.error);
+      saveAttempts(attempts).catch(console.error);
+      getGameProgress('child_01', state.currentGameId!)
+        .then((existingProgress) =>
+          upsertGameProgress({
+            child_id: 'child_01',
+            game_id: state.currentGameId!,
+            current_level: resolvedLevelEnded,
+            highest_level_unlocked: Math.max(
+              resolvedLevelEnded,
+              existingProgress?.highest_level_unlocked ?? 1
+            ),
+            last_session_accuracy: accuracy,
+            updated_at: new Date().toISOString(),
+          })
+        )
+        .catch(console.error);
+    });
 
     set({
       currentGameId: null,
@@ -306,6 +402,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       lastAnswerCorrect: null,
       currentLevel: 1,
       sessionStartedAt: '',
+      promptSupport: initialPromptSupportState,
       todayPromptCount: state.todayPromptCount + state.sessionResults.length,
     });
   },

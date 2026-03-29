@@ -127,40 +127,37 @@ Location and question words:
 
 ---
 
-## Game 3: Which Is Bigger?
+## Game 3: Daily Phrase Practice
 
 ### Goal
-Comparison and quantity words:
-`big`, `small`, `bigger`, `same`, `different`, `more`
+Functional daily-life phrases:
+`help me`, `all done`, `I want ___`, `my hand hurts`
 
-### Level 1 (Big/Small)
-- Two very different sizes
+### Level 1 (Model And Match)
+- Pair a familiar visual with one target phrase
 - Prompt types:
-  - `Show me the big one.`
-  - `Show me the small one.`
+  - `I want banana.`
+  - `Help me.`
 
-### Level 2 (Same/Different)
-- Use obvious matches and mismatches
-- Vary one feature at a time (size, then color, then shape)
+### Level 2 (Use In Familiar Routines)
+- Use snack, cleanup, break, and hurt/help scenes
 - Prompt type:
-  - `Same or different?`
+  - `What can Caelum say?`
 
-### Level 3 (More)
-- Compare small sets first (1-5 range)
-- Use visual quantity, not counting pressure
+### Level 3 (Generalize With New Scenes)
+- Keep the same phrase, but vary the objects and setting
 - Prompt types:
-  - `Which has more?`
-  - `Show me more.`
+  - `I want water.`
+  - `All done.`
 
-### Level 4 (Bigger)
-- Start with two objects, then three
-- Introduce only after `big/small` is stable
+### Level 4 (Mixed Functional Set)
+- Mix request, help, stop, and hurt phrases in one round
 - Prompt types:
-  - `Which is bigger?`
-  - `Show me the bigger one.`
+  - `I want ___.`
+  - `My hand hurts.`
 
 ### Mastery Check
-- Mixed set: size + sameness + quantity + comparative in one round
+- Mixed set: request + help + finished + hurt/support phrases in one round
 - Pass criterion:
   - `>=80%` over 10 mixed prompts
 

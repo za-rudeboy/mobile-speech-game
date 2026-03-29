@@ -32,8 +32,8 @@ export const SEED_PROMPTS_GAME2: PromptTemplate[] = [
   {
     prompt_id: 'prompt_g2_l1_03',
     game_id: 'where_is_it',
-    target_ids: ['target_in', 'target_on'],
-    prompt_type: 'choose_between_two',
+    target_ids: ['target_in', 'target_on', 'target_under'],
+    prompt_type: 'choose_between_four',
     difficulty_level: 1,
     prompt_group: 'where',
     feedback_key: 'car_in_box',
@@ -46,8 +46,8 @@ export const SEED_PROMPTS_GAME2: PromptTemplate[] = [
   {
     prompt_id: 'prompt_g2_l1_04',
     game_id: 'where_is_it',
-    target_ids: ['target_in', 'target_on'],
-    prompt_type: 'choose_between_two',
+    target_ids: ['target_in', 'target_on', 'target_under'],
+    prompt_type: 'choose_between_four',
     difficulty_level: 1,
     prompt_group: 'put',
     feedback_key: 'cup_on_table',

@@ -179,80 +179,67 @@ Use case:
 - parent selects intended answer
 - app saves the example under this concept
 
-## Mini-Game 3: Which Is Bigger?
+## Mini-Game 3: Daily Phrase Practice
 
 ### Purpose
 Teach:
 
-- `big`
-- `small`
-- `bigger`
-- `same`
-- `different`
-- `more`
+- `help me`
+- `all done`
+- `I want ___`
+- `my hand hurts`
 
 ### Core Interaction
-Use clear visual differences, not subtle ones.
+Use short, high-frequency daily-life phrases with clear visual scenes.
 
 Good examples:
 
-- two balls of different sizes
-- two stacks with different amounts
-- two shapes that are identical or not identical
+- child wants a banana
+- child needs help opening a box
+- child is finished with a puzzle
+- child's hand hurts
 
 ### Screen 1: Game Select Card
 Elements:
 
-- title: `Which Is Bigger?`
-- illustration of two very different sized objects
+- title: `Daily Phrase Practice`
+- illustration of a child using a short helpful phrase
 - start button
 
-### Screen 2: Big or Small
+### Screen 2: Model The Phrase
 Elements:
 
-- two objects side by side
-- spoken prompt `Point to the big one`
-- touchable objects only
+- simple scene with one daily-life problem or need
+- spoken model such as `I want banana`
+- replay button and touch choices
 
 Behavior:
 
-- object selected gets highlighted
-- app says `big` or `small`
+- app plays the target phrase
+- child taps the matching phrase choice
 
-### Screen 3: Bigger Comparison
+### Screen 3: Use The Phrase
 Elements:
 
-- two or three objects of increasing size
-- spoken prompt `Which is bigger?`
-- microphone button optional
+- familiar scene, such as snack time or cleanup
+- prompt like `What can Caelum say?`
+- 2 to 3 answer choices
 
 Behavior:
 
-- start with two objects only
-- move to three only after success is stable
+- keep the language highly functional
+- reinforce phrase use, not perfect speech
 
-### Screen 4: Same or Different
+### Screen 4: Parent Support Pattern
 Elements:
 
-- two objects shown side by side
-- prompt `Same or different?`
-- two buttons: `same` and `different`
+- visible `Help`
+- visible `Show me again`
+- visible `Break`
 
 Behavior:
 
-- use very obvious examples at first
-- later vary color, size, and shape separately
-
-### Screen 5: More
-Elements:
-
-- two groups of items, such as 2 apples and 5 apples
-- prompt `Which has more?`
-- touchable groups only
-
-Behavior:
-
-- use low counts first so the comparison is visual, not academic
+- support buttons should be available without leaving the prompt loop
 
 ### Screen 6: Parent Correction Sheet
 Same correction flow as other games.
@@ -263,15 +250,16 @@ The MVP home screen should be extremely simple.
 Elements:
 
 - app title
-- 3 large game cards
+- ranked activity cards
 - parent button in corner
 - progress indicator with simple labels such as `practiced today`
 
 Game cards:
 
-- `My Turn / Your Turn`
 - `Where Is It?`
-- `Which Is Bigger?`
+- `Daily Phrase Practice`
+- `Do What I Say`
+- `My Turn / Your Turn`
 
 ## Parent Mode Sketch
 Parent mode should be lightweight, not a full dashboard.
@@ -303,7 +291,7 @@ Keep version 1 deliberately small.
 
 Include:
 
-- 3 mini-games
+- short ranked activities
 - 10 to 20 targets total
 - speech plus touch input
 - parent correction loop

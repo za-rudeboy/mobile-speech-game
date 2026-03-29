@@ -5,7 +5,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { getWeeklyStats } from '@/db';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { GAME_META } from '@/data/constants';
+import { GAME_META, HOME_GAME_ORDER } from '@/data/constants';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useGameStore } from '@/store/game-store';
 import type { GameId } from '@/types';
@@ -73,11 +73,10 @@ export default function HomeScreen() {
       .catch(console.error);
   }, [todayPromptCount]);
 
-  const cards: { gameId: GameId; enabled: boolean }[] = [
-    { gameId: 'my_turn_your_turn', enabled: true },
-    { gameId: 'where_is_it', enabled: true },
-    { gameId: 'which_is_bigger', enabled: true },
-  ];
+  const cards: { gameId: GameId; enabled: boolean }[] = HOME_GAME_ORDER.map((gameId) => ({
+    gameId,
+    enabled: true,
+  }));
 
   const displayCount = Math.max(todayPromptCount, dbPromptCount);
 

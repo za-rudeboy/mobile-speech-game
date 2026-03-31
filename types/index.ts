@@ -61,6 +61,8 @@ export interface PromptTemplate {
   feedback_key: string;
   spoken_text: string;       // e.g. "Whose turn?"
   visual_scene_key: string;  // emoji or asset key e.g. "🏀"
+  support_text?: string;     // optional visible scaffold e.g. "The ball is ... the box."
+  scene_recipe_key?: string; // optional dynamic scene recipe key for generated scenes
   answer_options: string[];  // e.g. ["my turn", "your turn"]
   correct_answer: string;    // must be one of answer_options
   model_phrase?: string;

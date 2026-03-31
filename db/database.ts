@@ -96,6 +96,8 @@ interface PromptRow {
   feedback_key: string;
   spoken_text: string;
   visual_scene_key: string;
+  support_text: string | null;
+  scene_recipe_key: string | null;
   answer_options: string;
   correct_answer: string;
   model_phrase: string | null;
@@ -295,6 +297,8 @@ function clonePrompt(prompt: PromptTemplate): PromptTemplate {
     ...prompt,
     target_ids: [...prompt.target_ids],
     answer_options: [...prompt.answer_options],
+    support_text: prompt.support_text,
+    scene_recipe_key: prompt.scene_recipe_key,
   };
 }
 
@@ -350,6 +354,8 @@ function toPromptTemplate(row: PromptRow): PromptTemplate {
     feedback_key: row.feedback_key,
     spoken_text: row.spoken_text,
     visual_scene_key: row.visual_scene_key,
+    support_text: row.support_text ?? undefined,
+    scene_recipe_key: row.scene_recipe_key ?? undefined,
     answer_options: parseStringArray(row.answer_options),
     correct_answer: row.correct_answer,
     model_phrase: row.model_phrase ?? undefined,
@@ -482,15 +488,17 @@ async function upsertSeedContent(database: SQLite.SQLiteDatabase): Promise<void>
         target_ids,
         prompt_type,
         difficulty_level,
-        prompt_group,
-        feedback_key,
-        spoken_text,
-        visual_scene_key,
-        answer_options,
-        correct_answer,
-        model_phrase,
-        enabled
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      prompt_group,
+      feedback_key,
+      spoken_text,
+      visual_scene_key,
+      support_text,
+      scene_recipe_key,
+      answer_options,
+      correct_answer,
+      model_phrase,
+      enabled
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       prompt.prompt_id,
       prompt.game_id,
       JSON.stringify(prompt.target_ids),
@@ -500,6 +508,8 @@ async function upsertSeedContent(database: SQLite.SQLiteDatabase): Promise<void>
       prompt.feedback_key,
       prompt.spoken_text,
       prompt.visual_scene_key,
+      prompt.support_text ?? null,
+      prompt.scene_recipe_key ?? null,
       JSON.stringify(prompt.answer_options),
       prompt.correct_answer,
       prompt.model_phrase ?? null,
@@ -666,7 +676,18 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     await database.execAsync('PRAGMA user_version = 8;');
   }
 
-  await database.execAsync('PRAGMA user_version = 8;');
+  if (currentVersion < 9) {
+    await database.execAsync(
+      'ALTER TABLE prompt_templates ADD COLUMN support_text TEXT;'
+    );
+    await database.execAsync(
+      'ALTER TABLE prompt_templates ADD COLUMN scene_recipe_key TEXT;'
+    );
+    await upsertSeedContent(database);
+    await database.execAsync('PRAGMA user_version = 9;');
+  }
+
+  await database.execAsync('PRAGMA user_version = 9;');
   await seedIfFirstRun(database);
 }
 

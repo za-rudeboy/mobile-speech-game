@@ -5,6 +5,11 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import {
+  ResolvedWhereIsItScene,
+  resolvePromptSceneTokens,
+  resolveWhereIsItScene,
+} from '@/data/content/where-is-it-scenes';
 import { DEFAULT_CHILD_NAME, DEFAULT_PARENT_LABEL } from '@/data/constants';
 import { resolveCopyTokens } from '@/data/content/mvp-v1';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -21,25 +26,44 @@ function parseSceneTokens(sceneKey: string) {
   return Array.from(sceneKey.replace(/\uFE0F/g, ''));
 }
 
-function getWhereIsItScene(sceneKey: string) {
-  const sceneParts = parseSceneTokens(sceneKey);
+function WhereIsItScene({ scene }: { scene: ResolvedWhereIsItScene | null }) {
+  if (!scene) {
+    return (
+      <View style={styles.whereSceneCanvas}>
+        <View style={styles.whereSceneStage}>
+          <ThemedText style={styles.whereAnchorEmoji}>📍</ThemedText>
+        </View>
+      </View>
+    );
+  }
 
-  return {
-    left: sceneParts[0] ?? sceneKey,
-    right: sceneParts[1] ?? '📍',
-  };
-}
-
-function WhereIsItScene({ sceneKey, correctAnswer }: { sceneKey: string; correctAnswer: string }) {
-  const scene = getWhereIsItScene(sceneKey);
-  const relation = correctAnswer.toLowerCase();
+  const relation = scene.relation.toLowerCase();
+  const distractorStyles = [
+    styles.whereDistractorTopLeft,
+    styles.whereDistractorTopRight,
+    styles.whereDistractorBottomLeft,
+    styles.whereDistractorBottomRight,
+  ];
 
   if (relation === 'next to') {
     return (
       <View style={styles.whereSceneCanvas}>
-        <View style={styles.wherePairRow}>
-          <ThemedText style={styles.wherePrimaryEmojiInline}>{scene.left}</ThemedText>
-          <ThemedText style={styles.whereAnchorEmoji}>{scene.right}</ThemedText>
+        <View style={styles.whereSceneStage}>
+          {scene.distractors.map((item, index) => (
+            <View
+              key={`${scene.recipeKey}-distractor-${item.label}-${index}`}
+              style={[styles.whereDistractorBubble, distractorStyles[index % distractorStyles.length]]}>
+              <ThemedText style={styles.whereDistractorEmoji}>{item.emoji}</ThemedText>
+            </View>
+          ))}
+          <View style={styles.wherePairSceneRow}>
+            <View style={styles.whereFocusBubble}>
+              <ThemedText style={styles.wherePrimaryEmojiInline}>{scene.subject.emoji}</ThemedText>
+            </View>
+            <View style={styles.whereFocusBubble}>
+              <ThemedText style={styles.whereAnchorEmojiInline}>{scene.anchor.emoji}</ThemedText>
+            </View>
+          </View>
         </View>
       </View>
     );
@@ -47,16 +71,25 @@ function WhereIsItScene({ sceneKey, correctAnswer }: { sceneKey: string; correct
 
   return (
     <View style={styles.whereSceneCanvas}>
-      <ThemedText style={styles.whereAnchorEmoji}>{scene.right}</ThemedText>
-      <ThemedText
-        style={[
-          styles.wherePrimaryEmoji,
-          relation === 'in' && styles.wherePrimaryIn,
-          relation === 'on' && styles.wherePrimaryOn,
-          relation === 'under' && styles.wherePrimaryUnder,
-        ]}>
-        {scene.left}
-      </ThemedText>
+      <View style={styles.whereSceneStage}>
+        {scene.distractors.map((item, index) => (
+          <View
+            key={`${scene.recipeKey}-distractor-${item.label}-${index}`}
+            style={[styles.whereDistractorBubble, distractorStyles[index % distractorStyles.length]]}>
+            <ThemedText style={styles.whereDistractorEmoji}>{item.emoji}</ThemedText>
+          </View>
+        ))}
+        <ThemedText style={styles.whereAnchorEmoji}>{scene.anchor.emoji}</ThemedText>
+        <ThemedText
+          style={[
+            styles.wherePrimaryEmoji,
+            relation === 'in' && styles.wherePrimaryIn,
+            relation === 'on' && styles.wherePrimaryOn,
+            relation === 'under' && styles.wherePrimaryUnder,
+          ]}>
+          {scene.subject.emoji}
+        </ThemedText>
+      </View>
     </View>
   );
 }
@@ -89,7 +122,7 @@ function getPersonEmoji(label: string) {
   return '🙂';
 }
 
-function renderScene(prompt: PromptTemplate) {
+function renderScene(prompt: PromptTemplate, whereScene: ResolvedWhereIsItScene | null) {
   if (prompt.game_id === 'my_turn_your_turn') {
     return (
       <View style={styles.emojiRow}>
@@ -107,13 +140,17 @@ function renderScene(prompt: PromptTemplate) {
   }
 
   if (prompt.game_id === 'where_is_it') {
-    return <WhereIsItScene sceneKey={prompt.visual_scene_key} correctAnswer={prompt.correct_answer} />;
+    return <WhereIsItScene scene={whereScene} />;
   }
 
   return <GenericEmojiScene sceneKey={prompt.visual_scene_key} />;
 }
 
 function buildSupportText(prompt: PromptTemplate) {
+  if (prompt.support_text) {
+    return prompt.support_text;
+  }
+
   if (prompt.model_phrase) {
     return prompt.model_phrase;
   }
@@ -126,6 +163,10 @@ function buildSupportText(prompt: PromptTemplate) {
 }
 
 function buildPromptLabel(prompt: PromptTemplate) {
+  if (prompt.game_id === 'where_is_it') {
+    return 'Where is it?';
+  }
+
   if (prompt.prompt_type === 'build_sentence') {
     return 'Build the sentence';
   }
@@ -153,6 +194,7 @@ export default function GamePlayScreen() {
   const router = useRouter();
   const { gameId } = useLocalSearchParams<{ gameId?: string | string[] }>();
   const currentGameId = useGameStore((state) => state.currentGameId);
+  const activeSessionId = useGameStore((state) => state.activeSessionId);
   const gamePhase = useGameStore((state) => state.gamePhase);
   const prompts = useGameStore((state) => state.prompts);
   const currentPromptIndex = useGameStore((state) => state.currentPromptIndex);
@@ -169,28 +211,35 @@ export default function GamePlayScreen() {
   const cardColor = useThemeColor({ light: '#eef6fb', dark: '#1e3138' }, 'background');
   const secondaryText = useThemeColor({}, 'icon');
   const mutedText = useThemeColor({ light: '#60707F', dark: '#B7C1C8' }, 'text');
+  const resolvedWhereScene = useMemo(() => {
+    if (!currentPrompt) {
+      return null;
+    }
+
+    return resolveWhereIsItScene(currentPrompt, activeSessionId, currentPromptIndex);
+  }, [activeSessionId, currentPrompt, currentPromptIndex]);
 
   const resolvedSpokenText = useMemo(() => {
     if (!currentPrompt) {
       return '';
     }
 
-    return resolveCopyTokens(currentPrompt.spoken_text, {
+    return resolvePromptSceneTokens(currentPrompt.spoken_text, resolvedWhereScene, {
       childName: DEFAULT_CHILD_NAME,
       parentLabel: DEFAULT_PARENT_LABEL,
     });
-  }, [currentPrompt]);
+  }, [currentPrompt, resolvedWhereScene]);
 
-  const supportText = useMemo(() => {
+  const resolvedSupportText = useMemo(() => {
     if (!currentPrompt) {
       return '';
     }
 
-    return resolveCopyTokens(buildSupportText(currentPrompt), {
+    return resolvePromptSceneTokens(buildSupportText(currentPrompt), resolvedWhereScene, {
       childName: DEFAULT_CHILD_NAME,
       parentLabel: DEFAULT_PARENT_LABEL,
     });
-  }, [currentPrompt]);
+  }, [currentPrompt, resolvedWhereScene]);
 
   useEffect(() => {
     if (!resolvedGameId || !currentGameId || currentGameId !== resolvedGameId || prompts.length === 0) {
@@ -254,18 +303,24 @@ export default function GamePlayScreen() {
   const isTwoOptionLayout = answerCount <= 2;
   const isThreeOptionLayout = answerCount === 3;
   const promptLabel = buildPromptLabel(currentPrompt);
-
-  const replayPrompt = () => {
-    markPromptReplay();
+  const showSupportFrame =
+    currentPrompt.game_id === 'where_is_it' || currentPrompt.prompt_type === 'build_sentence';
+  const speakText = (text: string) => {
     if (!speechEnabled) {
       Speech.stop();
       return;
     }
+
     Speech.stop();
-    Speech.speak(resolvedSpokenText, {
+    Speech.speak(text, {
       rate: 0.85,
       pitch: 1,
     });
+  };
+
+  const replayPrompt = () => {
+    markPromptReplay();
+    speakText(resolvedSpokenText);
   };
 
   const handleAnswerPress = (answer: string) => {
@@ -300,11 +355,21 @@ export default function GamePlayScreen() {
 
       <View style={[styles.sceneCard, { backgroundColor: cardColor }]}>
         <ThemedText style={[styles.promptLabel, { color: mutedText }]}>{promptLabel}</ThemedText>
-        {renderScene(currentPrompt)}
+        {renderScene(currentPrompt, resolvedWhereScene)}
         <ThemedText style={styles.spokenText}>{resolvedSpokenText}</ThemedText>
-        {currentPrompt.prompt_type === 'build_sentence' ? (
-          <View style={styles.frameBadge}>
-            <ThemedText style={styles.frameBadgeText}>{resolvedSpokenText}</ThemedText>
+        {showSupportFrame ? (
+          <View
+            style={[
+              styles.frameBadge,
+              currentPrompt.game_id === 'where_is_it' && styles.whereSupportFrame,
+            ]}>
+            <ThemedText
+              style={[
+                styles.frameBadgeText,
+                currentPrompt.game_id === 'where_is_it' && [styles.whereSupportFrameText, { color: mutedText }],
+              ]}>
+              {currentPrompt.game_id === 'where_is_it' ? resolvedSupportText : resolvedSpokenText}
+            </ThemedText>
           </View>
         ) : null}
       </View>
@@ -315,6 +380,9 @@ export default function GamePlayScreen() {
           onPress={() => {
             markSupportAction('help');
             setSupportCardMode('hint');
+            if (currentPrompt.game_id === 'where_is_it') {
+              speakText(resolvedSupportText);
+            }
           }}
           style={({ pressed }) => [styles.supportButton, pressed && styles.supportButtonPressed]}>
           <ThemedText style={styles.supportButtonText}>Help</ThemedText>
@@ -323,16 +391,8 @@ export default function GamePlayScreen() {
           accessibilityRole="button"
           onPress={() => {
             markSupportAction('show_me_again');
-            setSupportCardMode('hint');
-            if (!speechEnabled) {
-              Speech.stop();
-              return;
-            }
-            Speech.stop();
-            Speech.speak(resolvedSpokenText, {
-              rate: 0.85,
-              pitch: 1,
-            });
+            setSupportCardMode(null);
+            speakText(resolvedSpokenText);
           }}
           style={({ pressed }) => [styles.supportButton, pressed && styles.supportButtonPressed]}>
           <ThemedText style={styles.supportButtonText}>Show me again</ThemedText>
@@ -351,7 +411,7 @@ export default function GamePlayScreen() {
       {supportCardMode === 'hint' ? (
         <View style={styles.supportCard}>
           <ThemedText style={styles.supportCardTitle}>Try this</ThemedText>
-          <ThemedText style={styles.supportCardText}>{supportText}</ThemedText>
+          <ThemedText style={styles.supportCardText}>{resolvedSupportText}</ThemedText>
           <Pressable
             accessibilityRole="button"
             onPress={dismissSupportCard}
@@ -550,6 +610,19 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontWeight: '600',
   },
+  whereSupportFrame: {
+    alignSelf: 'stretch',
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.78)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  whereSupportFrameText: {
+    textAlign: 'center',
+    fontSize: 17,
+    lineHeight: 23,
+    fontWeight: '700',
+  },
   supportRow: {
     flexDirection: 'row',
     gap: 10,
@@ -667,14 +740,31 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   whereSceneCanvas: {
-    minHeight: 136,
+    minHeight: 180,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
+  },
+  whereSceneStage: {
+    width: '100%',
+    minHeight: 168,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.68)',
+    borderWidth: 1,
+    borderColor: 'rgba(74, 144, 217, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    paddingHorizontal: 20,
+    paddingVertical: 18,
   },
   whereAnchorEmoji: {
     fontSize: 84,
     lineHeight: 92,
+  },
+  whereAnchorEmojiInline: {
+    fontSize: 76,
+    lineHeight: 84,
   },
   wherePrimaryEmoji: {
     fontSize: 60,
@@ -682,21 +772,60 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
   wherePrimaryIn: {
-    top: 38,
+    top: 56,
   },
   wherePrimaryOn: {
-    top: -2,
+    top: 14,
   },
   wherePrimaryUnder: {
-    top: 88,
+    top: 106,
   },
-  wherePairRow: {
+  wherePairSceneRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    justifyContent: 'center',
+    gap: 18,
   },
   wherePrimaryEmojiInline: {
-    fontSize: 68,
-    lineHeight: 74,
+    fontSize: 70,
+    lineHeight: 78,
+  },
+  whereFocusBubble: {
+    minWidth: 96,
+    minHeight: 96,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+  },
+  whereDistractorBubble: {
+    position: 'absolute',
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.72)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  whereDistractorEmoji: {
+    fontSize: 28,
+    lineHeight: 32,
+  },
+  whereDistractorTopLeft: {
+    top: 16,
+    left: 14,
+  },
+  whereDistractorTopRight: {
+    top: 16,
+    right: 14,
+  },
+  whereDistractorBottomLeft: {
+    bottom: 14,
+    left: 14,
+  },
+  whereDistractorBottomRight: {
+    bottom: 14,
+    right: 14,
   },
 });

@@ -1,12 +1,16 @@
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Speech from 'expo-speech';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import {
+  resolvePromptSceneTokens,
+  resolveWhereIsItScene,
+} from '@/data/content/where-is-it-scenes';
 import { DEFAULT_CHILD_NAME, DEFAULT_PARENT_LABEL } from '@/data/constants';
-import { MVP_V1_GAME_COPY, MVP_V1_UI_GLOBAL, resolveCopyTokens } from '@/data/content/mvp-v1';
+import { MVP_V1_GAME_COPY, MVP_V1_UI_GLOBAL } from '@/data/content/mvp-v1';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useGameStore } from '@/store/game-store';
 
@@ -14,6 +18,7 @@ export default function GameFeedbackScreen() {
   const router = useRouter();
   const { gameId } = useLocalSearchParams<{ gameId?: string | string[] }>();
   const currentGameId = useGameStore((state) => state.currentGameId);
+  const activeSessionId = useGameStore((state) => state.activeSessionId);
   const prompts = useGameStore((state) => state.prompts);
   const currentPromptIndex = useGameStore((state) => state.currentPromptIndex);
   const gamePhase = useGameStore((state) => state.gamePhase);
@@ -31,6 +36,13 @@ export default function GameFeedbackScreen() {
         ? 'rgba(76, 175, 80, 0.15)'
         : 'rgba(244, 67, 54, 0.15)';
   const currentPrompt = prompts[currentPromptIndex];
+  const resolvedWhereScene = useMemo(() => {
+    if (!currentPrompt) {
+      return null;
+    }
+
+    return resolveWhereIsItScene(currentPrompt, activeSessionId, currentPromptIndex);
+  }, [activeSessionId, currentPrompt, currentPromptIndex]);
 
   useEffect(() => {
     if (!resolvedGameId || !currentGameId || currentGameId !== resolvedGameId || prompts.length === 0) {
@@ -66,7 +78,7 @@ export default function GameFeedbackScreen() {
       currentPrompt.model_phrase ??
       gameFeedback?.[currentPrompt.feedback_key] ??
       currentPrompt.correct_answer;
-    const spokenFeedback = resolveCopyTokens(rawFeedbackSentence, {
+    const spokenFeedback = resolvePromptSceneTokens(rawFeedbackSentence, resolvedWhereScene, {
       childName: DEFAULT_CHILD_NAME,
       parentLabel: DEFAULT_PARENT_LABEL,
     });
@@ -81,7 +93,7 @@ export default function GameFeedbackScreen() {
       rate: 0.85,
       pitch: 1,
     });
-  }, [currentPrompt, gamePhase, lastAnswerCorrect, speechEnabled]);
+  }, [currentPrompt, gamePhase, lastAnswerCorrect, resolvedWhereScene, speechEnabled]);
 
   if (!currentPrompt || gamePhase !== 'feedback' || lastAnswerCorrect === null) {
     return <ThemedView style={styles.container} />;
@@ -94,7 +106,7 @@ export default function GameFeedbackScreen() {
     currentPrompt.model_phrase ??
     gameFeedback?.[currentPrompt.feedback_key] ??
     currentPrompt.correct_answer;
-  const feedbackSentence = resolveCopyTokens(rawFeedbackSentence, {
+  const feedbackSentence = resolvePromptSceneTokens(rawFeedbackSentence, resolvedWhereScene, {
     childName: DEFAULT_CHILD_NAME,
     parentLabel: DEFAULT_PARENT_LABEL,
   });

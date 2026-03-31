@@ -3,6 +3,8 @@ export const MVP_V1_COPY_SCHEMA_VERSION = '1.0.0';
 export const MVP_V1_TOKENS = {
   child_name: '{child_name}',
   parent_label: '{parent_label}',
+  subject_label: '{subject_label}',
+  anchor_label: '{anchor_label}',
 } as const;
 
 export const MVP_V1_UI_GLOBAL = {
@@ -167,9 +169,21 @@ export const MVP_V1_COPY = {
 
 export function resolveCopyTokens(
   text: string,
-  { childName, parentLabel }: { childName: string; parentLabel: string }
+  {
+    childName,
+    parentLabel,
+    subjectLabel,
+    anchorLabel,
+  }: {
+    childName: string;
+    parentLabel: string;
+    subjectLabel?: string;
+    anchorLabel?: string;
+  }
 ): string {
   return text
     .replaceAll(MVP_V1_TOKENS.child_name, childName)
-    .replaceAll(MVP_V1_TOKENS.parent_label, parentLabel);
+    .replaceAll(MVP_V1_TOKENS.parent_label, parentLabel)
+    .replaceAll(MVP_V1_TOKENS.subject_label, subjectLabel ?? MVP_V1_TOKENS.subject_label)
+    .replaceAll(MVP_V1_TOKENS.anchor_label, anchorLabel ?? MVP_V1_TOKENS.anchor_label);
 }

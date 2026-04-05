@@ -467,6 +467,11 @@ function getSeedPrompts(): PromptTemplate[] {
 }
 
 async function upsertSeedContent(database: SQLite.SQLiteDatabase): Promise<void> {
+  const promptTemplateColumns = await database.getAllAsync<TableInfoRow>(
+    'PRAGMA table_info(prompt_templates);'
+  );
+  const promptTemplateColumnNames = new Set(promptTemplateColumns.map((column) => column.name));
+
   for (const target of SEED_TARGETS) {
     await database.runAsync(
       `INSERT OR REPLACE INTO target_concepts (
@@ -493,41 +498,70 @@ async function upsertSeedContent(database: SQLite.SQLiteDatabase): Promise<void>
   }
 
   for (const prompt of getSeedPrompts()) {
-    await database.runAsync(
-      `INSERT OR REPLACE INTO prompt_templates (
-        prompt_id,
-        game_id,
-        target_ids,
-        prompt_type,
-        difficulty_level,
-      prompt_group,
-      feedback_key,
-      spoken_text,
-      visual_scene_key,
-      support_text,
-      scene_recipe_key,
-      interaction_recipe_key,
-      answer_options,
-      correct_answer,
-      model_phrase,
-      enabled
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+    const columnNames = [
+      'prompt_id',
+      'game_id',
+      'target_ids',
+      'prompt_type',
+      'spoken_text',
+      'visual_scene_key',
+      'answer_options',
+      'correct_answer',
+      'enabled',
+    ];
+    const values: Array<string | number | null> = [
       prompt.prompt_id,
       prompt.game_id,
       JSON.stringify(prompt.target_ids),
       prompt.prompt_type,
-      prompt.difficulty_level,
-      prompt.prompt_group,
-      prompt.feedback_key,
       prompt.spoken_text,
       prompt.visual_scene_key,
-      prompt.support_text ?? null,
-      prompt.scene_recipe_key ?? null,
-      prompt.interaction_recipe_key ?? null,
       JSON.stringify(prompt.answer_options),
       prompt.correct_answer,
-      prompt.model_phrase ?? null,
-      Number(prompt.enabled)
+      Number(prompt.enabled),
+    ];
+
+    if (promptTemplateColumnNames.has('difficulty_level')) {
+      columnNames.push('difficulty_level');
+      values.push(prompt.difficulty_level);
+    }
+
+    if (promptTemplateColumnNames.has('prompt_group')) {
+      columnNames.push('prompt_group');
+      values.push(prompt.prompt_group);
+    }
+
+    if (promptTemplateColumnNames.has('feedback_key')) {
+      columnNames.push('feedback_key');
+      values.push(prompt.feedback_key);
+    }
+
+    if (promptTemplateColumnNames.has('support_text')) {
+      columnNames.push('support_text');
+      values.push(prompt.support_text ?? null);
+    }
+
+    if (promptTemplateColumnNames.has('scene_recipe_key')) {
+      columnNames.push('scene_recipe_key');
+      values.push(prompt.scene_recipe_key ?? null);
+    }
+
+    if (promptTemplateColumnNames.has('interaction_recipe_key')) {
+      columnNames.push('interaction_recipe_key');
+      values.push(prompt.interaction_recipe_key ?? null);
+    }
+
+    if (promptTemplateColumnNames.has('model_phrase')) {
+      columnNames.push('model_phrase');
+      values.push(prompt.model_phrase ?? null);
+    }
+
+    const placeholders = columnNames.map(() => '?').join(', ');
+    await database.runAsync(
+      `INSERT OR REPLACE INTO prompt_templates (
+        ${columnNames.join(',\n        ')}
+      ) VALUES (${placeholders});`,
+      ...values
     );
   }
 }

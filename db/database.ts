@@ -191,6 +191,10 @@ interface AppSettingRow {
   updated_at: string;
 }
 
+interface TableInfoRow {
+  name: string;
+}
+
 const TABLE_CREATION_SQL = [
   `CREATE TABLE IF NOT EXISTS child_profiles (
     child_id TEXT PRIMARY KEY,
@@ -570,6 +574,15 @@ async function seedIfFirstRun(database: SQLite.SQLiteDatabase): Promise<void> {
   );
 }
 
+async function hasColumn(
+  database: SQLite.SQLiteDatabase,
+  tableName: string,
+  columnName: string
+): Promise<boolean> {
+  const rows = await database.getAllAsync<TableInfoRow>(`PRAGMA table_info(${tableName});`);
+  return rows.some((row) => row.name === columnName);
+}
+
 async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
   await database.execAsync('PRAGMA foreign_keys = ON;');
 
@@ -583,28 +596,40 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
   const currentVersion = versionRow?.user_version ?? 0;
 
   if (currentVersion < 2) {
-    await database.execAsync(
-      'ALTER TABLE prompt_templates ADD COLUMN difficulty_level INTEGER NOT NULL DEFAULT 1;'
-    );
-    await database.execAsync(
-      "ALTER TABLE prompt_templates ADD COLUMN prompt_group TEXT NOT NULL DEFAULT '';"
-    );
-    await database.execAsync(
-      "ALTER TABLE prompt_templates ADD COLUMN feedback_key TEXT NOT NULL DEFAULT '';"
-    );
+    if (!(await hasColumn(database, 'prompt_templates', 'difficulty_level'))) {
+      await database.execAsync(
+        'ALTER TABLE prompt_templates ADD COLUMN difficulty_level INTEGER NOT NULL DEFAULT 1;'
+      );
+    }
+    if (!(await hasColumn(database, 'prompt_templates', 'prompt_group'))) {
+      await database.execAsync(
+        "ALTER TABLE prompt_templates ADD COLUMN prompt_group TEXT NOT NULL DEFAULT '';"
+      );
+    }
+    if (!(await hasColumn(database, 'prompt_templates', 'feedback_key'))) {
+      await database.execAsync(
+        "ALTER TABLE prompt_templates ADD COLUMN feedback_key TEXT NOT NULL DEFAULT '';"
+      );
+    }
     await database.execAsync('PRAGMA user_version = 2;');
   }
 
   if (currentVersion < 3) {
-    await database.execAsync(
-      'ALTER TABLE practice_sessions ADD COLUMN level_started INTEGER NOT NULL DEFAULT 1;'
-    );
-    await database.execAsync(
-      'ALTER TABLE practice_sessions ADD COLUMN level_ended INTEGER NOT NULL DEFAULT 1;'
-    );
-    await database.execAsync(
-      'ALTER TABLE practice_sessions ADD COLUMN accuracy REAL NOT NULL DEFAULT 0;'
-    );
+    if (!(await hasColumn(database, 'practice_sessions', 'level_started'))) {
+      await database.execAsync(
+        'ALTER TABLE practice_sessions ADD COLUMN level_started INTEGER NOT NULL DEFAULT 1;'
+      );
+    }
+    if (!(await hasColumn(database, 'practice_sessions', 'level_ended'))) {
+      await database.execAsync(
+        'ALTER TABLE practice_sessions ADD COLUMN level_ended INTEGER NOT NULL DEFAULT 1;'
+      );
+    }
+    if (!(await hasColumn(database, 'practice_sessions', 'accuracy'))) {
+      await database.execAsync(
+        'ALTER TABLE practice_sessions ADD COLUMN accuracy REAL NOT NULL DEFAULT 0;'
+      );
+    }
     await database.execAsync('PRAGMA user_version = 3;');
   }
 
@@ -622,34 +647,50 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
   }
 
   if (currentVersion < 5) {
-    await database.execAsync(
-      'ALTER TABLE prompt_templates ADD COLUMN model_phrase TEXT;'
-    );
+    if (!(await hasColumn(database, 'prompt_templates', 'model_phrase'))) {
+      await database.execAsync(
+        'ALTER TABLE prompt_templates ADD COLUMN model_phrase TEXT;'
+      );
+    }
     await database.execAsync('PRAGMA user_version = 5;');
   }
 
   if (currentVersion < 6) {
-    await database.execAsync(
-      'ALTER TABLE prompt_attempts ADD COLUMN support_action_used TEXT;'
-    );
-    await database.execAsync(
-      'ALTER TABLE prompt_attempts ADD COLUMN support_action_count INTEGER NOT NULL DEFAULT 0;'
-    );
-    await database.execAsync(
-      'ALTER TABLE prompt_attempts ADD COLUMN visual_support_level INTEGER NOT NULL DEFAULT 0;'
-    );
-    await database.execAsync(
-      'ALTER TABLE prompt_attempts ADD COLUMN model_replay_count INTEGER NOT NULL DEFAULT 0;'
-    );
-    await database.execAsync(
-      'ALTER TABLE prompt_attempts ADD COLUMN break_taken INTEGER NOT NULL DEFAULT 0;'
-    );
-    await database.execAsync(
-      'ALTER TABLE prompt_attempts ADD COLUMN demo_was_shown INTEGER NOT NULL DEFAULT 0;'
-    );
-    await database.execAsync(
-      'ALTER TABLE prompt_attempts ADD COLUMN selected_tokens_json TEXT;'
-    );
+    if (!(await hasColumn(database, 'prompt_attempts', 'support_action_used'))) {
+      await database.execAsync(
+        'ALTER TABLE prompt_attempts ADD COLUMN support_action_used TEXT;'
+      );
+    }
+    if (!(await hasColumn(database, 'prompt_attempts', 'support_action_count'))) {
+      await database.execAsync(
+        'ALTER TABLE prompt_attempts ADD COLUMN support_action_count INTEGER NOT NULL DEFAULT 0;'
+      );
+    }
+    if (!(await hasColumn(database, 'prompt_attempts', 'visual_support_level'))) {
+      await database.execAsync(
+        'ALTER TABLE prompt_attempts ADD COLUMN visual_support_level INTEGER NOT NULL DEFAULT 0;'
+      );
+    }
+    if (!(await hasColumn(database, 'prompt_attempts', 'model_replay_count'))) {
+      await database.execAsync(
+        'ALTER TABLE prompt_attempts ADD COLUMN model_replay_count INTEGER NOT NULL DEFAULT 0;'
+      );
+    }
+    if (!(await hasColumn(database, 'prompt_attempts', 'break_taken'))) {
+      await database.execAsync(
+        'ALTER TABLE prompt_attempts ADD COLUMN break_taken INTEGER NOT NULL DEFAULT 0;'
+      );
+    }
+    if (!(await hasColumn(database, 'prompt_attempts', 'demo_was_shown'))) {
+      await database.execAsync(
+        'ALTER TABLE prompt_attempts ADD COLUMN demo_was_shown INTEGER NOT NULL DEFAULT 0;'
+      );
+    }
+    if (!(await hasColumn(database, 'prompt_attempts', 'selected_tokens_json'))) {
+      await database.execAsync(
+        'ALTER TABLE prompt_attempts ADD COLUMN selected_tokens_json TEXT;'
+      );
+    }
     await database.execAsync('PRAGMA user_version = 6;');
   }
 
@@ -687,26 +728,36 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
   }
 
   if (currentVersion < 9) {
-    await database.execAsync(
-      'ALTER TABLE prompt_templates ADD COLUMN support_text TEXT;'
-    );
-    await database.execAsync(
-      'ALTER TABLE prompt_templates ADD COLUMN scene_recipe_key TEXT;'
-    );
+    if (!(await hasColumn(database, 'prompt_templates', 'support_text'))) {
+      await database.execAsync(
+        'ALTER TABLE prompt_templates ADD COLUMN support_text TEXT;'
+      );
+    }
+    if (!(await hasColumn(database, 'prompt_templates', 'scene_recipe_key'))) {
+      await database.execAsync(
+        'ALTER TABLE prompt_templates ADD COLUMN scene_recipe_key TEXT;'
+      );
+    }
     await upsertSeedContent(database);
     await database.execAsync('PRAGMA user_version = 9;');
   }
 
   if (currentVersion < 10) {
-    await database.execAsync(
-      'ALTER TABLE prompt_templates ADD COLUMN interaction_recipe_key TEXT;'
-    );
-    await database.execAsync(
-      'ALTER TABLE prompt_attempts ADD COLUMN incorrect_attempt_count INTEGER NOT NULL DEFAULT 0;'
-    );
-    await database.execAsync(
-      'ALTER TABLE prompt_attempts ADD COLUMN independent_success INTEGER;'
-    );
+    if (!(await hasColumn(database, 'prompt_templates', 'interaction_recipe_key'))) {
+      await database.execAsync(
+        'ALTER TABLE prompt_templates ADD COLUMN interaction_recipe_key TEXT;'
+      );
+    }
+    if (!(await hasColumn(database, 'prompt_attempts', 'incorrect_attempt_count'))) {
+      await database.execAsync(
+        'ALTER TABLE prompt_attempts ADD COLUMN incorrect_attempt_count INTEGER NOT NULL DEFAULT 0;'
+      );
+    }
+    if (!(await hasColumn(database, 'prompt_attempts', 'independent_success'))) {
+      await database.execAsync(
+        'ALTER TABLE prompt_attempts ADD COLUMN independent_success INTEGER;'
+      );
+    }
     await upsertSeedContent(database);
     await database.execAsync('PRAGMA user_version = 10;');
   }

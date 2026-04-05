@@ -33,8 +33,8 @@ Improve clarity of high-frequency functional phrases that matter in daily routin
 4. Use the same phrase in a simple choice or action.
 
 ### Example Content
-- `I want banana`
-- `help me`
+- `i want a banana please`
+- `help me please`
 - `my hand hurts`
 - `all done`
 

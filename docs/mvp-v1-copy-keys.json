@@ -57,8 +57,8 @@
       "label": "Next to"
     },
     "help_me": {
-      "value": "help me",
-      "label": "Help me"
+      "value": "help me please",
+      "label": "help me please"
     },
     "all_done": {
       "value": "all done",
@@ -104,8 +104,8 @@
         "what_can_caelum_say": "What can Caelum say?"
       },
       "feedback": {
-        "want_banana": "I want banana.",
-        "help_box": "Help me.",
+        "want_banana": "i want a banana please.",
+        "help_box": "help me please.",
         "all_done_puzzle": "All done.",
         "hand_hurts": "My hand hurts."
       }

@@ -104,7 +104,7 @@ These are reasonable later targets, but not good first targets for the MVP.
 ## High-Value Bonus Targets
 If the app expands beyond the first 20, these are strong next candidates.
 
-- `help me`
+- `help me please`
 - `not that`
 - `again`
 - `stop`

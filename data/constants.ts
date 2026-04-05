@@ -39,7 +39,7 @@ export const GAME_META = {
   },
   daily_phrase_practice: {
     title: 'Daily Phrase Practice',
-    subtitle: 'help me, all done, I want',
+    subtitle: 'help me please, all done, I want',
     emoji: '🗣️',
   },
   do_what_i_say: {

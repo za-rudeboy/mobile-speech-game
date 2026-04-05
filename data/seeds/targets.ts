@@ -50,7 +50,7 @@ export const SEED_TARGETS: TargetConcept[] = [
   {
     target_id: 'target_help_me',
     slug: 'help_me',
-    label: 'help me',
+    label: 'help me please',
     category: 'functional_phrase',
     game_id: 'daily_phrase_practice',
     status: 'enabled',

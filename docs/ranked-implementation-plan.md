@@ -184,7 +184,7 @@ Screens needed:
 
 Primary goals:
 - `I want ___`
-- `help me`
+- `help me please`
 - `all done`
 - `my hand hurts`
 

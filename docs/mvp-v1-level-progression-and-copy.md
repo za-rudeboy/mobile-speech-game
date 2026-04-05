@@ -131,13 +131,13 @@ Location and question words:
 
 ### Goal
 Functional daily-life phrases:
-`help me`, `all done`, `I want ___`, `my hand hurts`
+`help me please`, `all done`, `I want ___`, `my hand hurts`
 
 ### Level 1 (Model And Match)
 - Pair a familiar visual with one target phrase
 - Prompt types:
-  - `I want banana.`
-  - `Help me.`
+  - `i want a banana please.`
+  - `help me please.`
 
 ### Level 2 (Use In Familiar Routines)
 - Use snack, cleanup, break, and hurt/help scenes
@@ -147,7 +147,7 @@ Functional daily-life phrases:
 ### Level 3 (Generalize With New Scenes)
 - Keep the same phrase, but vary the objects and setting
 - Prompt types:
-  - `I want water.`
+  - `I want water please.`
   - `All done.`
 
 ### Level 4 (Mixed Functional Set)
@@ -239,7 +239,7 @@ If he masters the base levels quickly, add one variable at a time.
 2. New object set, same prompt structure.
 3. Two-step direction: `Put it in the box, then give it to me.`
 4. Gentle speed round (no penalties).
-5. Functional repair phrases: `help me`, `again`, `not that`, `I don’t know`.
+5. Functional repair phrases: `help me please`, `again`, `not that`, `I don’t know`.
 
 These increase challenge while keeping frustration low.
 

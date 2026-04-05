@@ -184,7 +184,7 @@ Use case:
 ### Purpose
 Teach:
 
-- `help me`
+- `help me please`
 - `all done`
 - `I want ___`
 - `my hand hurts`
@@ -210,7 +210,7 @@ Elements:
 Elements:
 
 - simple scene with one daily-life problem or need
-- spoken model such as `I want banana`
+- spoken model such as `i want a banana please`
 - replay button and touch choices
 
 Behavior:

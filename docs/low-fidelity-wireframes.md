@@ -48,7 +48,7 @@ Purpose:
 |                                                  |
 | +----------------------------------------------+ |
 | | Daily Phrase Practice                        | |
-| | help me, all done, I want                    | |
+| | help me please, all done, I want                    | |
 | |                    [Start]                   | |
 | +----------------------------------------------+ |
 +--------------------------------------------------+
@@ -133,7 +133,7 @@ Purpose:
 |               What can Caelum say?               |
 |                                                  |
 |      +----------------+  +----------------+      |
-|      | I want banana  |  |    all done    |      |
+|      | i want a banana please  |  |    all done    |      |
 |      +----------------+  +----------------+      |
 |                                                  |
 |                    [Mic]                         |
@@ -211,7 +211,7 @@ Purpose:
 | [ ] where  [ ] which                             |
 |                                                  |
 | Daily Phrase Practice                            |
-| [x] help me  [x] all done  [x] I want            |
+| [x] help me please  [x] all done  [x] I want            |
 | [ ] my hand hurts                                |
 |                                                  |
 |                 [Save]                           |
@@ -233,7 +233,7 @@ Purpose:
 |                                                  |
 | "mah tuhn"  ->  my turn      4 times            |
 | "nuh to"    ->  next to      2 times            |
-| "hep"       ->  help me      3 times           |
+| "hep"       ->  help me please      3 times           |
 |                                                  |
 | tap item for examples and notes                  |
 +--------------------------------------------------+

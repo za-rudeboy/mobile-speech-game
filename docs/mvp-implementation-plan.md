@@ -276,7 +276,7 @@ Game state lives in Zustand, NOT in navigation params. Routes only receive `game
 
 #### T12. Daily Phrase Practice (Touch-Only)
 
-**What:** Create 6 prompts for `help me`, `all done`, `I want ___`, and `my hand hurts`. Screen types: (a) listen and choose the helpful phrase, (b) use a short phrase in a familiar scene. Enable on Home screen.
+**What:** Create 6 prompts for `help me please`, `all done`, `I want ___`, and `my hand hurts`. Screen types: (a) listen and choose the helpful phrase, (b) use a short phrase in a familiar scene. Enable on Home screen.
 
 **Depends on:** T3, T5
 **Blocks:** T13

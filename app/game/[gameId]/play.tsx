@@ -1,10 +1,12 @@
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Speech from 'expo-speech';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { DoWhatISayScene } from '@/components/games/do-what-i-say-scene';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { resolveDoWhatISayScene } from '@/data/content/do-what-i-say-scenes';
 import {
   ResolvedWhereIsItScene,
   resolvePromptSceneTokens,
@@ -163,6 +165,10 @@ function buildSupportText(prompt: PromptTemplate) {
 }
 
 function buildPromptLabel(prompt: PromptTemplate) {
+  if (prompt.game_id === 'do_what_i_say' && prompt.prompt_type === 'drag_to_place') {
+    return 'Do what I say';
+  }
+
   if (prompt.game_id === 'where_is_it') {
     return 'Where is it?';
   }
@@ -201,11 +207,17 @@ export default function GamePlayScreen() {
   const submitAnswer = useGameStore((state) => state.submitAnswer);
   const markSupportAction = useGameStore((state) => state.markSupportAction);
   const markPromptReplay = useGameStore((state) => state.markPromptReplay);
+  const markPromptDemoShown = useGameStore((state) => state.markPromptDemoShown);
   const resetPromptSupport = useGameStore((state) => state.resetPromptSupport);
   const speechEnabled = useGameStore((state) => state.speechEnabled);
+  const feedbackDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const holdFeedbackNavigationRef = useRef(false);
   const resolvedGameId = Array.isArray(gameId) ? gameId[0] : gameId;
   const currentPrompt = prompts[currentPromptIndex];
   const [supportCardMode, setSupportCardMode] = useState<SupportCardMode>(null);
+  const [dragDemoNonce, setDragDemoNonce] = useState(0);
+  const [dragIncorrectAttemptCount, setDragIncorrectAttemptCount] = useState(0);
+  const [dragHighlightTargetLabel, setDragHighlightTargetLabel] = useState<string | null>(null);
   const tintColor = useThemeColor({}, 'tint');
   const actionButtonColor = useThemeColor({ light: '#4A90D9', dark: '#5FA8F5' }, 'tint');
   const cardColor = useThemeColor({ light: '#eef6fb', dark: '#1e3138' }, 'background');
@@ -240,6 +252,13 @@ export default function GamePlayScreen() {
       parentLabel: DEFAULT_PARENT_LABEL,
     });
   }, [currentPrompt, resolvedWhereScene]);
+  const resolvedDoWhatISayScene = useMemo(() => {
+    if (!currentPrompt) {
+      return null;
+    }
+
+    return resolveDoWhatISayScene(currentPrompt);
+  }, [currentPrompt]);
 
   useEffect(() => {
     if (!resolvedGameId || !currentGameId || currentGameId !== resolvedGameId || prompts.length === 0) {
@@ -253,6 +272,10 @@ export default function GamePlayScreen() {
     }
 
     if (gamePhase === 'feedback') {
+      if (holdFeedbackNavigationRef.current) {
+        return;
+      }
+
       router.replace(`/game/${resolvedGameId}/feedback` as Href);
       return;
     }
@@ -261,6 +284,14 @@ export default function GamePlayScreen() {
       router.replace('/');
     }
   }, [currentGameId, gamePhase, prompts.length, resolvedGameId, router]);
+
+  useEffect(() => {
+    return () => {
+      if (feedbackDelayRef.current) {
+        clearTimeout(feedbackDelayRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!speechEnabled) {
@@ -274,6 +305,13 @@ export default function GamePlayScreen() {
     }
 
     setSupportCardMode(null);
+    setDragIncorrectAttemptCount(0);
+    setDragHighlightTargetLabel(null);
+    holdFeedbackNavigationRef.current = false;
+    if (feedbackDelayRef.current) {
+      clearTimeout(feedbackDelayRef.current);
+      feedbackDelayRef.current = null;
+    }
     resetPromptSupport();
     if (!speechEnabled) {
       Speech.stop();
@@ -300,6 +338,7 @@ export default function GamePlayScreen() {
 
   const answerCount = currentPrompt.answer_options.length;
   const isTapObjectPrompt = currentPrompt.prompt_type === 'tap_object';
+  const isDragToPlacePrompt = currentPrompt.prompt_type === 'drag_to_place';
   const isTwoOptionLayout = answerCount <= 2;
   const isThreeOptionLayout = answerCount === 3;
   const promptLabel = buildPromptLabel(currentPrompt);
@@ -323,15 +362,64 @@ export default function GamePlayScreen() {
     speakText(resolvedSpokenText);
   };
 
+  const navigateToFeedbackAfterDelay = () => {
+    holdFeedbackNavigationRef.current = true;
+    feedbackDelayRef.current = setTimeout(() => {
+      holdFeedbackNavigationRef.current = false;
+      feedbackDelayRef.current = null;
+      router.replace(`/game/${resolvedGameId}/feedback` as Href);
+    }, 650);
+  };
+
+  const handleDragFailure = () => {
+    setDragIncorrectAttemptCount((count) => count + 1);
+    setDragHighlightTargetLabel(currentPrompt.correct_answer);
+    setSupportCardMode('hint');
+  };
+
   const handleAnswerPress = (answer: string) => {
+    if (isDragToPlacePrompt) {
+      if (answer !== currentPrompt.correct_answer) {
+        handleDragFailure();
+        return;
+      }
+
+      submitAnswer(answer, undefined, {
+        incorrectAttemptCount: dragIncorrectAttemptCount,
+        independentSuccess: dragIncorrectAttemptCount === 0,
+      });
+      navigateToFeedbackAfterDelay();
+      return;
+    }
+
     const selectedTokens = currentPrompt.prompt_type === 'build_sentence' ? [answer] : undefined;
     submitAnswer(answer, selectedTokens);
     router.replace(`/game/${resolvedGameId}/feedback` as Href);
   };
 
+  const handleDragResolved = ({
+    targetLabel,
+    wasCorrect,
+  }: {
+    targetLabel: string;
+    wasCorrect: boolean;
+  }) => {
+    if (!wasCorrect) {
+      handleDragFailure();
+      return;
+    }
+
+    submitAnswer(targetLabel, undefined, {
+      incorrectAttemptCount: dragIncorrectAttemptCount,
+      independentSuccess: dragIncorrectAttemptCount === 0,
+    });
+    navigateToFeedbackAfterDelay();
+  };
+
   const dismissSupportCard = () => {
     markSupportAction('try_again');
     setSupportCardMode(null);
+    setDragHighlightTargetLabel(null);
   };
 
   return (
@@ -355,7 +443,16 @@ export default function GamePlayScreen() {
 
       <View style={[styles.sceneCard, { backgroundColor: cardColor }]}>
         <ThemedText style={[styles.promptLabel, { color: mutedText }]}>{promptLabel}</ThemedText>
-        {renderScene(currentPrompt, resolvedWhereScene)}
+        {isDragToPlacePrompt ? (
+          <DoWhatISayScene
+            scene={resolvedDoWhatISayScene}
+            demoNonce={dragDemoNonce}
+            highlightTargetLabel={dragHighlightTargetLabel}
+            onResolved={handleDragResolved}
+          />
+        ) : (
+          renderScene(currentPrompt, resolvedWhereScene)
+        )}
         <ThemedText style={styles.spokenText}>{resolvedSpokenText}</ThemedText>
         {showSupportFrame ? (
           <View
@@ -380,6 +477,9 @@ export default function GamePlayScreen() {
           onPress={() => {
             markSupportAction('help');
             setSupportCardMode('hint');
+            if (isDragToPlacePrompt) {
+              setDragHighlightTargetLabel(currentPrompt.correct_answer);
+            }
             if (currentPrompt.game_id === 'where_is_it') {
               speakText(resolvedSupportText);
             }
@@ -392,6 +492,11 @@ export default function GamePlayScreen() {
           onPress={() => {
             markSupportAction('show_me_again');
             setSupportCardMode(null);
+            if (isDragToPlacePrompt) {
+              setDragHighlightTargetLabel(currentPrompt.correct_answer);
+              setDragDemoNonce((value) => value + 1);
+              markPromptDemoShown();
+            }
             speakText(resolvedSpokenText);
           }}
           style={({ pressed }) => [styles.supportButton, pressed && styles.supportButtonPressed]}>

@@ -63,6 +63,7 @@ export interface PromptTemplate {
   visual_scene_key: string;  // emoji or asset key e.g. "🏀"
   support_text?: string;     // optional visible scaffold e.g. "The ball is ... the box."
   scene_recipe_key?: string; // optional dynamic scene recipe key for generated scenes
+  interaction_recipe_key?: string; // optional interactive scene recipe key for drag prompts
   answer_options: string[];  // e.g. ["my turn", "your turn"]
   correct_answer: string;    // must be one of answer_options
   model_phrase?: string;
@@ -111,6 +112,8 @@ export interface PromptAttempt {
   model_replay_count?: number;
   break_taken?: boolean;
   demo_was_shown?: boolean;
+  incorrect_attempt_count?: number;
+  independent_success?: boolean;
   selected_tokens_json?: string[];
   response_time_ms?: number;
   created_at: string;

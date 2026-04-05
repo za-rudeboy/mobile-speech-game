@@ -98,6 +98,7 @@ interface PromptRow {
   visual_scene_key: string;
   support_text: string | null;
   scene_recipe_key: string | null;
+  interaction_recipe_key: string | null;
   answer_options: string;
   correct_answer: string;
   model_phrase: string | null;
@@ -146,6 +147,8 @@ interface AttemptRow {
   model_replay_count: number | null;
   break_taken: number | null;
   demo_was_shown: number | null;
+  incorrect_attempt_count: number | null;
+  independent_success: number | null;
   selected_tokens_json: string | null;
   response_time_ms: number | null;
   created_at: string;
@@ -299,6 +302,7 @@ function clonePrompt(prompt: PromptTemplate): PromptTemplate {
     answer_options: [...prompt.answer_options],
     support_text: prompt.support_text,
     scene_recipe_key: prompt.scene_recipe_key,
+    interaction_recipe_key: prompt.interaction_recipe_key,
   };
 }
 
@@ -356,6 +360,7 @@ function toPromptTemplate(row: PromptRow): PromptTemplate {
     visual_scene_key: row.visual_scene_key,
     support_text: row.support_text ?? undefined,
     scene_recipe_key: row.scene_recipe_key ?? undefined,
+    interaction_recipe_key: row.interaction_recipe_key ?? undefined,
     answer_options: parseStringArray(row.answer_options),
     correct_answer: row.correct_answer,
     model_phrase: row.model_phrase ?? undefined,
@@ -410,6 +415,9 @@ function toPromptAttempt(row: AttemptRow): PromptAttempt {
     model_replay_count: row.model_replay_count ?? undefined,
     break_taken: row.break_taken === null ? undefined : Boolean(row.break_taken),
     demo_was_shown: row.demo_was_shown === null ? undefined : Boolean(row.demo_was_shown),
+    incorrect_attempt_count: row.incorrect_attempt_count ?? undefined,
+    independent_success:
+      row.independent_success === null ? undefined : Boolean(row.independent_success),
     selected_tokens_json: row.selected_tokens_json
       ? parseStringArray(row.selected_tokens_json)
       : undefined,
@@ -494,6 +502,7 @@ async function upsertSeedContent(database: SQLite.SQLiteDatabase): Promise<void>
       visual_scene_key,
       support_text,
       scene_recipe_key,
+      interaction_recipe_key,
       answer_options,
       correct_answer,
       model_phrase,
@@ -510,6 +519,7 @@ async function upsertSeedContent(database: SQLite.SQLiteDatabase): Promise<void>
       prompt.visual_scene_key,
       prompt.support_text ?? null,
       prompt.scene_recipe_key ?? null,
+      prompt.interaction_recipe_key ?? null,
       JSON.stringify(prompt.answer_options),
       prompt.correct_answer,
       prompt.model_phrase ?? null,
@@ -687,7 +697,21 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     await database.execAsync('PRAGMA user_version = 9;');
   }
 
-  await database.execAsync('PRAGMA user_version = 9;');
+  if (currentVersion < 10) {
+    await database.execAsync(
+      'ALTER TABLE prompt_templates ADD COLUMN interaction_recipe_key TEXT;'
+    );
+    await database.execAsync(
+      'ALTER TABLE prompt_attempts ADD COLUMN incorrect_attempt_count INTEGER NOT NULL DEFAULT 0;'
+    );
+    await database.execAsync(
+      'ALTER TABLE prompt_attempts ADD COLUMN independent_success INTEGER;'
+    );
+    await upsertSeedContent(database);
+    await database.execAsync('PRAGMA user_version = 10;');
+  }
+
+  await database.execAsync('PRAGMA user_version = 10;');
   await seedIfFirstRun(database);
 }
 
@@ -1062,10 +1086,12 @@ export async function saveAttempt(attempt: PromptAttempt): Promise<void> {
       model_replay_count,
       break_taken,
       demo_was_shown,
+      incorrect_attempt_count,
+      independent_success,
       selected_tokens_json,
       response_time_ms,
       created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
     attempt.attempt_id,
     attempt.session_id,
     attempt.prompt_id,
@@ -1085,6 +1111,8 @@ export async function saveAttempt(attempt: PromptAttempt): Promise<void> {
     attempt.model_replay_count ?? 0,
     Number(attempt.break_taken ?? false),
     Number(attempt.demo_was_shown ?? false),
+    attempt.incorrect_attempt_count ?? 0,
+    attempt.independent_success === undefined ? null : Number(attempt.independent_success),
     JSON.stringify(attempt.selected_tokens_json ?? []),
     attempt.response_time_ms ?? null,
     attempt.created_at

@@ -46,9 +46,17 @@ interface GameState {
   loadAppSettings: () => Promise<void>;
   setSpeechEnabled: (nextValue: boolean) => Promise<void>;
   startGame: (gameId: GameId) => Promise<boolean>;
-  submitAnswer: (answer: string, selectedTokens?: string[]) => void;
+  submitAnswer: (
+    answer: string,
+    selectedTokens?: string[],
+    attemptMetrics?: {
+      incorrectAttemptCount?: number;
+      independentSuccess?: boolean;
+    }
+  ) => void;
   markSupportAction: (action: SupportAction) => void;
   markPromptReplay: () => void;
+  markPromptDemoShown: () => void;
   resetPromptSupport: () => void;
   nextPrompt: () => void;
   endGame: () => void;
@@ -389,7 +397,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
   },
 
-  submitAnswer: (answer, selectedTokens) => {
+  submitAnswer: (answer, selectedTokens, attemptMetrics) => {
     const state = get();
     const currentPrompt = state.prompts[state.currentPromptIndex];
 
@@ -414,6 +422,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       model_replay_count: state.promptSupport.modelReplayCount,
       break_taken: state.promptSupport.breakTaken,
       demo_was_shown: state.promptSupport.demoWasShown,
+      incorrect_attempt_count: attemptMetrics?.incorrectAttemptCount ?? 0,
+      independent_success: attemptMetrics?.independentSuccess,
       selected_tokens_json: selectedTokens,
       created_at: new Date().toISOString(),
     };
@@ -440,8 +450,7 @@ export const useGameStore = create<GameState>((set, get) => ({
             ? state.promptSupport.modelReplayCount + 1
             : state.promptSupport.modelReplayCount,
         breakTaken: action === 'break' ? true : state.promptSupport.breakTaken,
-        demoWasShown:
-          action === 'show_me_again' ? true : state.promptSupport.demoWasShown,
+        demoWasShown: state.promptSupport.demoWasShown,
       },
     });
   },
@@ -452,6 +461,16 @@ export const useGameStore = create<GameState>((set, get) => ({
       promptSupport: {
         ...state.promptSupport,
         modelReplayCount: state.promptSupport.modelReplayCount + 1,
+      },
+    });
+  },
+
+  markPromptDemoShown: () => {
+    const state = get();
+    set({
+      promptSupport: {
+        ...state.promptSupport,
+        demoWasShown: true,
       },
     });
   },
@@ -490,12 +509,18 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const sessionId = state.activeSessionId;
     const totalCount = state.sessionResults.length;
-    const correctCount = state.sessionResults.filter((attempt) => attempt.was_correct_for_prompt).length;
+    const correctCount = state.sessionResults.filter((attempt) =>
+      attempt.independent_success === undefined
+        ? attempt.was_correct_for_prompt
+        : attempt.independent_success
+    ).length;
     const accuracy = totalCount > 0 ? correctCount / totalCount : 0;
 
     const lastFiveAttempts = state.sessionResults.slice(-5);
-    const lastFiveCorrectCount = lastFiveAttempts.filter(
-      (attempt) => attempt.was_correct_for_prompt
+    const lastFiveCorrectCount = lastFiveAttempts.filter((attempt) =>
+      attempt.independent_success === undefined
+        ? attempt.was_correct_for_prompt
+        : attempt.independent_success
     ).length;
     const lastFiveAccuracy =
       lastFiveAttempts.length > 0 ? lastFiveCorrectCount / lastFiveAttempts.length : 0;
@@ -503,7 +528,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     let currentStreak = 0;
     let maxConsecutiveCorrect = 0;
     for (const attempt of state.sessionResults) {
-      if (attempt.was_correct_for_prompt) {
+      const countedAsCorrect =
+        attempt.independent_success === undefined
+          ? attempt.was_correct_for_prompt
+          : attempt.independent_success;
+
+      if (countedAsCorrect) {
         currentStreak += 1;
         maxConsecutiveCorrect = Math.max(maxConsecutiveCorrect, currentStreak);
       } else {

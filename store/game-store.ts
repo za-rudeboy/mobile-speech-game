@@ -122,6 +122,17 @@ function shufflePrompts(prompts: PromptTemplate[]) {
   return shuffled;
 }
 
+function shuffleArray<T>(items: T[]) {
+  const shuffled = [...items];
+
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  return shuffled;
+}
+
 function mergeWithoutAdjacentDuplicates(prompts: PromptTemplate[]) {
   if (prompts.length <= 1) {
     return prompts;
@@ -185,6 +196,104 @@ function selectSessionPrompts(
   return mergeWithoutAdjacentDuplicates(shuffledMerged);
 }
 
+const WHERE_IS_IT_RELATIONS = ['in', 'on', 'under', 'next to'] as const;
+
+function isWhereRelation(
+  value: string
+): value is (typeof WHERE_IS_IT_RELATIONS)[number] {
+  return WHERE_IS_IT_RELATIONS.includes(
+    value as (typeof WHERE_IS_IT_RELATIONS)[number]
+  );
+}
+
+function mergeWithoutAdjacentRelationDuplicates(prompts: PromptTemplate[]) {
+  if (prompts.length <= 1) {
+    return prompts;
+  }
+
+  const remaining = [...prompts];
+  const ordered: PromptTemplate[] = [];
+
+  while (remaining.length > 0) {
+    const lastRelation = ordered[ordered.length - 1]?.correct_answer;
+    const nextIndex = remaining.findIndex((prompt) => prompt.correct_answer !== lastRelation);
+    const resolvedIndex = nextIndex >= 0 ? nextIndex : 0;
+    ordered.push(...remaining.splice(resolvedIndex, 1));
+  }
+
+  return ordered;
+}
+
+function selectBalancedWhereIsItPrompts(prompts: PromptTemplate[], sessionCount: number) {
+  const relationPools = new Map<
+    (typeof WHERE_IS_IT_RELATIONS)[number],
+    PromptTemplate[]
+  >();
+
+  for (const relation of WHERE_IS_IT_RELATIONS) {
+    relationPools.set(
+      relation,
+      shufflePrompts(prompts.filter((prompt) => prompt.correct_answer === relation))
+    );
+  }
+
+  const availableRelations = WHERE_IS_IT_RELATIONS.filter((relation) => {
+    const pool = relationPools.get(relation);
+    return pool && pool.length > 0;
+  });
+
+  if (availableRelations.length === 0) {
+    return [];
+  }
+
+  const selected: PromptTemplate[] = [];
+  const counts = new Map<(typeof WHERE_IS_IT_RELATIONS)[number], number>();
+  for (const relation of availableRelations) {
+    counts.set(relation, 0);
+  }
+
+  while (selected.length < sessionCount) {
+    const remainingRelations = availableRelations.filter((relation) => {
+      const pool = relationPools.get(relation);
+      return pool && pool.length > 0;
+    });
+
+    if (remainingRelations.length === 0) {
+      break;
+    }
+
+    const lowestCount = Math.min(
+      ...remainingRelations.map((relation) => counts.get(relation) ?? 0)
+    );
+    const candidateRelations = shuffleArray(
+      remainingRelations.filter((relation) => (counts.get(relation) ?? 0) === lowestCount)
+    );
+
+    const preferredRelation = candidateRelations.find(
+      (relation) => relation !== selected[selected.length - 1]?.correct_answer
+    );
+    const nextRelation = preferredRelation ?? candidateRelations[0];
+
+    const pool = relationPools.get(nextRelation);
+    const nextPrompt = pool?.shift();
+    if (!nextPrompt) {
+      continue;
+    }
+
+    selected.push(nextPrompt);
+    counts.set(nextRelation, (counts.get(nextRelation) ?? 0) + 1);
+  }
+
+  if (selected.length < sessionCount) {
+    const leftovers = shufflePrompts(
+      prompts.filter((prompt) => !selected.some((item) => item.prompt_id === prompt.prompt_id))
+    );
+    selected.push(...leftovers.slice(0, sessionCount - selected.length));
+  }
+
+  return mergeWithoutAdjacentRelationDuplicates(selected.slice(0, sessionCount));
+}
+
 export const useGameStore = create<GameState>((set, get) => ({
   ...initialGameState,
 
@@ -230,7 +339,13 @@ export const useGameStore = create<GameState>((set, get) => ({
       const sessionCount = DEFAULT_SESSION_PROMPT_COUNT;
       let selectedPrompts: PromptTemplate[] = [];
 
-      if (currentLevel === 1) {
+      if (gameId === 'where_is_it') {
+        const allLevels = Array.from({ length: maxLevel }, (_, index) => index + 1);
+        const wherePool = (await getPromptsForGameLevels(gameId, allLevels, enabledTargetIds)).filter(
+          (prompt) => isWhereRelation(prompt.correct_answer)
+        );
+        selectedPrompts = selectBalancedWhereIsItPrompts(wherePool, sessionCount);
+      } else if (currentLevel === 1) {
         const levelOnePool = await getPromptsForGameLevels(gameId, [1], enabledTargetIds);
         selectedPrompts = shufflePrompts(levelOnePool).slice(0, sessionCount);
       } else {

@@ -8,6 +8,9 @@
 - `docs/`: Product, UX, and architecture notes for the speech-learning direction.
 - `scripts/`: Utility scripts (for example, `reset-project.js`).
 
+## Product Preference Notes
+- Check `docs/product-memory.md` before making product-shaping changes to game interactions or difficulty.
+
 ## Build, Test, and Development Commands
 - `npm install`: Install dependencies.
 - `npm run start`: Start Expo dev server.
@@ -44,3 +47,9 @@
 ## Security & Configuration Tips
 - Do not commit secrets; keep runtime keys in Expo config/env mechanisms.
 - Review `app.json` changes carefully, especially app IDs, permissions, and plugin settings.
+
+## Browser Automation Note
+- This machine may not have a system Chrome install at `/opt/google/chrome/chrome`, even when Playwright browser automation has worked before.
+- A prior working browser binary was Playwright-managed Chromium in the user cache at `~/.cache/ms-playwright/chromium-1212/chrome-linux64/chrome`.
+- If MCP Playwright fails because system Chrome is missing, check `~/.cache/ms-playwright/` for a downloaded Playwright browser before assuming browser automation is unavailable.
+- Keep image asset extensions lowercase like `.png` for Expo web compatibility. Uppercase `.PNG` files caused Metro to parse the files as source instead of bundling them as assets.

@@ -1,3 +1,5 @@
+import { ImageSourcePropType } from 'react-native';
+
 import { resolveCopyTokens } from '@/data/content/mvp-v1';
 import { PromptTemplate } from '@/types';
 
@@ -14,7 +16,16 @@ interface SceneRecipe {
   distractors: SceneToken[];
 }
 
-export interface ResolvedWhereIsItScene {
+interface ImageSceneRecipe {
+  imageSource: ImageSourcePropType;
+  subject: SceneToken;
+  anchor: SceneToken;
+  relation: WhereRelation;
+  recipeKey: string;
+}
+
+interface EmojiWhereIsItScene {
+  kind: 'emoji';
   relation: WhereRelation;
   subject: SceneToken;
   anchor: SceneToken;
@@ -22,11 +33,81 @@ export interface ResolvedWhereIsItScene {
   recipeKey: string;
 }
 
+interface ImageWhereIsItScene {
+  kind: 'image';
+  relation: WhereRelation;
+  subject: SceneToken;
+  anchor: SceneToken;
+  imageSource: ImageSourcePropType;
+  recipeKey: string;
+}
+
+export type ResolvedWhereIsItScene = EmojiWhereIsItScene | ImageWhereIsItScene;
+
 const SHARED_DISTRACTORS: SceneToken[] = [
   { emoji: '⭐', label: 'star' },
   { emoji: '🌼', label: 'flower' },
   { emoji: '☁️', label: 'cloud' },
   { emoji: '🪴', label: 'plant' },
+];
+
+const IMAGE_SCENE_RECIPES: ImageSceneRecipe[] = [
+  {
+    imageSource: require('../../assets/images/where_is_it/car_in_box.png'),
+    subject: { emoji: '🚗', label: 'car' },
+    anchor: { emoji: '📦', label: 'box' },
+    relation: 'in',
+    recipeKey: 'image_car_in_box',
+  },
+  {
+    imageSource: require('../../assets/images/where_is_it/car_next_to_box.png'),
+    subject: { emoji: '🚗', label: 'car' },
+    anchor: { emoji: '📦', label: 'box' },
+    relation: 'next to',
+    recipeKey: 'image_car_next_to_box',
+  },
+  {
+    imageSource: require('../../assets/images/where_is_it/car_next_to_log.png'),
+    subject: { emoji: '🚗', label: 'car' },
+    anchor: { emoji: '🪵', label: 'log' },
+    relation: 'next to',
+    recipeKey: 'image_car_next_to_log',
+  },
+  {
+    imageSource: require('../../assets/images/where_is_it/car_on_log.png'),
+    subject: { emoji: '🚗', label: 'car' },
+    anchor: { emoji: '🪵', label: 'log' },
+    relation: 'on',
+    recipeKey: 'image_car_on_log',
+  },
+  {
+    imageSource: require('../../assets/images/where_is_it/car_under_box.png'),
+    subject: { emoji: '🚗', label: 'car' },
+    anchor: { emoji: '📦', label: 'box' },
+    relation: 'under',
+    recipeKey: 'image_car_under_box',
+  },
+  {
+    imageSource: require('../../assets/images/where_is_it/cup_next_to_chair.png'),
+    subject: { emoji: '🥤', label: 'cup' },
+    anchor: { emoji: '🪑', label: 'chair' },
+    relation: 'next to',
+    recipeKey: 'image_cup_next_to_chair',
+  },
+  {
+    imageSource: require('../../assets/images/where_is_it/cup_on_chair.png'),
+    subject: { emoji: '🥤', label: 'cup' },
+    anchor: { emoji: '🪑', label: 'chair' },
+    relation: 'on',
+    recipeKey: 'image_cup_on_chair',
+  },
+  {
+    imageSource: require('../../assets/images/where_is_it/cup_under_chair.png'),
+    subject: { emoji: '🥤', label: 'cup' },
+    anchor: { emoji: '🪑', label: 'chair' },
+    relation: 'under',
+    recipeKey: 'image_cup_under_chair',
+  },
 ];
 
 const WHERE_IS_IT_SCENE_RECIPES: Record<string, SceneRecipe> = {
@@ -186,6 +267,25 @@ function getDistractorCount(difficultyLevel: PromptTemplate['difficulty_level'],
   return random() > 0.45 ? 2 : 1;
 }
 
+function resolveImageScene(relation: WhereRelation, random: () => number): ImageWhereIsItScene | null {
+  const matchingScenes = IMAGE_SCENE_RECIPES.filter((scene) => scene.relation === relation);
+
+  if (matchingScenes.length === 0) {
+    return null;
+  }
+
+  const selectedScene = pickOne(matchingScenes, random);
+
+  return {
+    kind: 'image',
+    relation: selectedScene.relation,
+    subject: selectedScene.subject,
+    anchor: selectedScene.anchor,
+    imageSource: selectedScene.imageSource,
+    recipeKey: selectedScene.recipeKey,
+  };
+}
+
 export function resolveWhereIsItScene(
   prompt: PromptTemplate,
   sessionId: string,
@@ -195,6 +295,14 @@ export function resolveWhereIsItScene(
     return null;
   }
 
+  const random = createRandom(`${sessionId}:${prompt.prompt_id}:${promptIndex}:${prompt.correct_answer}`);
+
+  const imageScene = resolveImageScene(prompt.correct_answer, random);
+
+  if (imageScene) {
+    return imageScene;
+  }
+
   const recipeKey = prompt.scene_recipe_key ?? getRecipeKeyForRelation(prompt.correct_answer);
   const recipe = WHERE_IS_IT_SCENE_RECIPES[recipeKey];
 
@@ -202,7 +310,6 @@ export function resolveWhereIsItScene(
     return null;
   }
 
-  const random = createRandom(`${sessionId}:${prompt.prompt_id}:${promptIndex}:${recipeKey}`);
   const subject = pickOne(recipe.subjects, random);
   const anchor = pickOne(
     recipe.anchors.filter((candidate) => candidate.label !== subject.label),
@@ -217,6 +324,7 @@ export function resolveWhereIsItScene(
   );
 
   return {
+    kind: 'emoji',
     relation: prompt.correct_answer,
     subject,
     anchor,

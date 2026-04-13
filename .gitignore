@@ -72,3 +72,6 @@ app-example
 .playwright-cli/page-2026-03-31T18-22-17-004Z.yml
 .playwright-cli/page-2026-03-31T18-22-25-743Z.yml
 .playwright-cli/page-2026-03-31T18-22-38-155Z.yml
+
+# sensitive local documents
+sensitive-docs/

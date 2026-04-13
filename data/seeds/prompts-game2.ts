@@ -1,233 +1,63 @@
 import { PromptTemplate } from '@/types';
 
 const WHERE_QUESTION = 'Where is the {subject_label}?';
-const WHERE_FRAME = 'The {subject_label} is ... the {anchor_label}.';
+const ANSWER_OPTIONS = ['in', 'on', 'under', 'next to'] as const;
+const TARGET_IDS = ['target_in', 'target_on', 'target_under', 'target_next_to'];
+
+type WhereRelation = (typeof ANSWER_OPTIONS)[number];
+type SceneRecipeKey = 'container' | 'surface' | 'under' | 'adjacent';
+
+const RELATION_TO_SCENE_KEY: Record<WhereRelation, SceneRecipeKey> = {
+  in: 'container',
+  on: 'surface',
+  under: 'under',
+  'next to': 'adjacent',
+};
 
 function createWherePrompt({
   promptId,
   difficultyLevel,
-  targetIds,
-  answerOptions,
   correctAnswer,
-  sceneRecipeKey,
 }: {
   promptId: string;
   difficultyLevel: PromptTemplate['difficulty_level'];
-  targetIds: string[];
-  answerOptions: string[];
-  correctAnswer: 'in' | 'on' | 'under' | 'next to';
-  sceneRecipeKey: 'container' | 'surface' | 'under' | 'adjacent';
+  correctAnswer: WhereRelation;
 }): PromptTemplate {
   return {
     prompt_id: promptId,
     game_id: 'where_is_it',
-    target_ids: targetIds,
-    prompt_type: answerOptions.length <= 2 ? 'choose_between_two' : 'choose_between_four',
+    target_ids: [...TARGET_IDS],
+    prompt_type: 'choose_between_four',
     difficulty_level: difficultyLevel,
     prompt_group: 'where',
     feedback_key: `where_${correctAnswer.replace(' ', '_')}`,
     spoken_text: WHERE_QUESTION,
-    support_text: WHERE_FRAME,
-    visual_scene_key: sceneRecipeKey,
-    scene_recipe_key: sceneRecipeKey,
-    answer_options: answerOptions,
+    support_text: `The {subject_label} is ${correctAnswer} the {anchor_label}.`,
+    visual_scene_key: RELATION_TO_SCENE_KEY[correctAnswer],
+    scene_recipe_key: RELATION_TO_SCENE_KEY[correctAnswer],
+    answer_options: [...ANSWER_OPTIONS],
     correct_answer: correctAnswer,
     model_phrase: `The {subject_label} is ${correctAnswer} the {anchor_label}.`,
     enabled: true,
   };
 }
 
+function createLevelPrompts(
+  difficultyLevel: PromptTemplate['difficulty_level'],
+  relations: WhereRelation[]
+) {
+  return relations.map((correctAnswer, index) =>
+    createWherePrompt({
+      promptId: `prompt_g2_l${difficultyLevel}_${String(index + 1).padStart(2, '0')}`,
+      difficultyLevel,
+      correctAnswer,
+    })
+  );
+}
+
 export const SEED_PROMPTS_GAME2: PromptTemplate[] = [
-  createWherePrompt({
-    promptId: 'prompt_g2_l1_01',
-    difficultyLevel: 1,
-    targetIds: ['target_in', 'target_on'],
-    answerOptions: ['in', 'on'],
-    correctAnswer: 'in',
-    sceneRecipeKey: 'container',
-  }),
-  createWherePrompt({
-    promptId: 'prompt_g2_l1_02',
-    difficultyLevel: 1,
-    targetIds: ['target_in', 'target_on'],
-    answerOptions: ['in', 'on'],
-    correctAnswer: 'on',
-    sceneRecipeKey: 'surface',
-  }),
-  createWherePrompt({
-    promptId: 'prompt_g2_l1_03',
-    difficultyLevel: 1,
-    targetIds: ['target_in', 'target_on'],
-    answerOptions: ['in', 'on'],
-    correctAnswer: 'in',
-    sceneRecipeKey: 'container',
-  }),
-  createWherePrompt({
-    promptId: 'prompt_g2_l1_04',
-    difficultyLevel: 1,
-    targetIds: ['target_in', 'target_on'],
-    answerOptions: ['in', 'on'],
-    correctAnswer: 'on',
-    sceneRecipeKey: 'surface',
-  }),
-  createWherePrompt({
-    promptId: 'prompt_g2_l1_05',
-    difficultyLevel: 1,
-    targetIds: ['target_in', 'target_on'],
-    answerOptions: ['in', 'on'],
-    correctAnswer: 'in',
-    sceneRecipeKey: 'container',
-  }),
-  createWherePrompt({
-    promptId: 'prompt_g2_l1_06',
-    difficultyLevel: 1,
-    targetIds: ['target_in', 'target_on'],
-    answerOptions: ['in', 'on'],
-    correctAnswer: 'on',
-    sceneRecipeKey: 'surface',
-  }),
-  createWherePrompt({
-    promptId: 'prompt_g2_l2_01',
-    difficultyLevel: 2,
-    targetIds: ['target_in', 'target_on', 'target_under'],
-    answerOptions: ['in', 'on', 'under'],
-    correctAnswer: 'under',
-    sceneRecipeKey: 'under',
-  }),
-  createWherePrompt({
-    promptId: 'prompt_g2_l2_02',
-    difficultyLevel: 2,
-    targetIds: ['target_in', 'target_on', 'target_under'],
-    answerOptions: ['in', 'on', 'under'],
-    correctAnswer: 'in',
-    sceneRecipeKey: 'container',
-  }),
-  createWherePrompt({
-    promptId: 'prompt_g2_l2_03',
-    difficultyLevel: 2,
-    targetIds: ['target_in', 'target_on', 'target_under'],
-    answerOptions: ['in', 'on', 'under'],
-    correctAnswer: 'on',
-    sceneRecipeKey: 'surface',
-  }),
-  createWherePrompt({
-    promptId: 'prompt_g2_l2_04',
-    difficultyLevel: 2,
-    targetIds: ['target_in', 'target_on', 'target_under'],
-    answerOptions: ['in', 'on', 'under'],
-    correctAnswer: 'under',
-    sceneRecipeKey: 'under',
-  }),
-  createWherePrompt({
-    promptId: 'prompt_g2_l2_05',
-    difficultyLevel: 2,
-    targetIds: ['target_in', 'target_on', 'target_under'],
-    answerOptions: ['in', 'on', 'under'],
-    correctAnswer: 'on',
-    sceneRecipeKey: 'surface',
-  }),
-  createWherePrompt({
-    promptId: 'prompt_g2_l2_06',
-    difficultyLevel: 2,
-    targetIds: ['target_in', 'target_on', 'target_under'],
-    answerOptions: ['in', 'on', 'under'],
-    correctAnswer: 'in',
-    sceneRecipeKey: 'container',
-  }),
-  createWherePrompt({
-    promptId: 'prompt_g2_l3_01',
-    difficultyLevel: 3,
-    targetIds: ['target_in', 'target_on', 'target_under', 'target_next_to'],
-    answerOptions: ['in', 'on', 'under', 'next to'],
-    correctAnswer: 'next to',
-    sceneRecipeKey: 'adjacent',
-  }),
-  createWherePrompt({
-    promptId: 'prompt_g2_l3_02',
-    difficultyLevel: 3,
-    targetIds: ['target_in', 'target_on', 'target_under', 'target_next_to'],
-    answerOptions: ['in', 'on', 'under', 'next to'],
-    correctAnswer: 'under',
-    sceneRecipeKey: 'under',
-  }),
-  createWherePrompt({
-    promptId: 'prompt_g2_l3_03',
-    difficultyLevel: 3,
-    targetIds: ['target_in', 'target_on', 'target_under', 'target_next_to'],
-    answerOptions: ['in', 'on', 'under', 'next to'],
-    correctAnswer: 'on',
-    sceneRecipeKey: 'surface',
-  }),
-  createWherePrompt({
-    promptId: 'prompt_g2_l3_04',
-    difficultyLevel: 3,
-    targetIds: ['target_in', 'target_on', 'target_under', 'target_next_to'],
-    answerOptions: ['in', 'on', 'under', 'next to'],
-    correctAnswer: 'in',
-    sceneRecipeKey: 'container',
-  }),
-  createWherePrompt({
-    promptId: 'prompt_g2_l3_05',
-    difficultyLevel: 3,
-    targetIds: ['target_in', 'target_on', 'target_under', 'target_next_to'],
-    answerOptions: ['in', 'on', 'under', 'next to'],
-    correctAnswer: 'next to',
-    sceneRecipeKey: 'adjacent',
-  }),
-  createWherePrompt({
-    promptId: 'prompt_g2_l3_06',
-    difficultyLevel: 3,
-    targetIds: ['target_in', 'target_on', 'target_under', 'target_next_to'],
-    answerOptions: ['in', 'on', 'under', 'next to'],
-    correctAnswer: 'under',
-    sceneRecipeKey: 'under',
-  }),
-  createWherePrompt({
-    promptId: 'prompt_g2_l4_01',
-    difficultyLevel: 4,
-    targetIds: ['target_in', 'target_on', 'target_under', 'target_next_to'],
-    answerOptions: ['in', 'on', 'under', 'next to'],
-    correctAnswer: 'next to',
-    sceneRecipeKey: 'adjacent',
-  }),
-  createWherePrompt({
-    promptId: 'prompt_g2_l4_02',
-    difficultyLevel: 4,
-    targetIds: ['target_in', 'target_on', 'target_under', 'target_next_to'],
-    answerOptions: ['in', 'on', 'under', 'next to'],
-    correctAnswer: 'in',
-    sceneRecipeKey: 'container',
-  }),
-  createWherePrompt({
-    promptId: 'prompt_g2_l4_03',
-    difficultyLevel: 4,
-    targetIds: ['target_in', 'target_on', 'target_under', 'target_next_to'],
-    answerOptions: ['in', 'on', 'under', 'next to'],
-    correctAnswer: 'under',
-    sceneRecipeKey: 'under',
-  }),
-  createWherePrompt({
-    promptId: 'prompt_g2_l4_04',
-    difficultyLevel: 4,
-    targetIds: ['target_in', 'target_on', 'target_under', 'target_next_to'],
-    answerOptions: ['in', 'on', 'under', 'next to'],
-    correctAnswer: 'on',
-    sceneRecipeKey: 'surface',
-  }),
-  createWherePrompt({
-    promptId: 'prompt_g2_l4_05',
-    difficultyLevel: 4,
-    targetIds: ['target_in', 'target_on', 'target_under', 'target_next_to'],
-    answerOptions: ['in', 'on', 'under', 'next to'],
-    correctAnswer: 'next to',
-    sceneRecipeKey: 'adjacent',
-  }),
-  createWherePrompt({
-    promptId: 'prompt_g2_l4_06',
-    difficultyLevel: 4,
-    targetIds: ['target_in', 'target_on', 'target_under', 'target_next_to'],
-    answerOptions: ['in', 'on', 'under', 'next to'],
-    correctAnswer: 'on',
-    sceneRecipeKey: 'surface',
-  }),
+  ...createLevelPrompts(1, ['in', 'on', 'under', 'next to', 'in', 'next to', 'on', 'under']),
+  ...createLevelPrompts(2, ['under', 'next to', 'on', 'in', 'next to', 'under', 'in', 'on']),
+  ...createLevelPrompts(3, ['next to', 'under', 'on', 'in', 'under', 'next to', 'on', 'in']),
+  ...createLevelPrompts(4, ['next to', 'in', 'under', 'on', 'under', 'next to', 'in', 'on']),
 ];

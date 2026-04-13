@@ -5,7 +5,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { getWeeklyStats } from '@/db';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { GAME_META, HOME_GAME_ORDER } from '@/data/constants';
+import { FIRST_WAVE_GAME_IDS, GAME_META, HOME_GAME_ORDER } from '@/data/constants';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useGameStore } from '@/store/game-store';
 import type { GameId } from '@/types';
@@ -75,7 +75,7 @@ export default function HomeScreen() {
 
   const cards: { gameId: GameId; enabled: boolean }[] = HOME_GAME_ORDER.map((gameId) => ({
     gameId,
-    enabled: true,
+    enabled: FIRST_WAVE_GAME_IDS.some((value) => value === gameId),
   }));
 
   const displayCount = Math.max(todayPromptCount, dbPromptCount);
@@ -99,6 +99,9 @@ export default function HomeScreen() {
 
       <ThemedText style={[styles.practiceCounter, { color: practiceCounterText }]}>
         Practiced today: {displayCount} prompts
+      </ThemedText>
+      <ThemedText style={[styles.helperText, { color: practiceCounterText }]}>
+        Start with short, practical language practice.
       </ThemedText>
 
       <ScrollView
@@ -159,6 +162,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     lineHeight: 22,
+  },
+  helperText: {
+    marginTop: 4,
+    fontSize: 15,
+    lineHeight: 20,
   },
   cardList: {
     flex: 1,

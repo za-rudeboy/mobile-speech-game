@@ -8,6 +8,12 @@ export const GAME_IDS = {
   MOVEMENT_SEARCH: 'movement_search' as const,
 };
 
+export const FIRST_WAVE_GAME_IDS = [
+  GAME_IDS.WHERE_IS_IT,
+  GAME_IDS.DAILY_PHRASE_PRACTICE,
+  GAME_IDS.DO_WHAT_I_SAY,
+] as const;
+
 export const HOME_GAME_ORDER = [
   GAME_IDS.WHERE_IS_IT,
   GAME_IDS.DAILY_PHRASE_PRACTICE,
@@ -22,9 +28,9 @@ export const PROMPTS_PER_SESSION = 4;
 
 export const DEFAULT_CHILD_NAME = 'Caelum';
 export const DEFAULT_PARENT_LABEL = 'Dad';
-export const DEFAULT_SESSION_PROMPT_COUNT = 6;
-export const MIN_SESSION_PROMPT_COUNT = 6;
-export const MAX_SESSION_PROMPT_COUNT = 10;
+export const DEFAULT_SESSION_PROMPT_COUNT = 4;
+export const MIN_SESSION_PROMPT_COUNT = 4;
+export const MAX_SESSION_PROMPT_COUNT = 6;
 
 export const GAME_META = {
   my_turn_your_turn: {
@@ -39,27 +45,27 @@ export const GAME_META = {
   },
   daily_phrase_practice: {
     title: 'Daily Phrase Practice',
-    subtitle: 'help me please, all done, I want',
+    subtitle: 'help, all done, I want, my hand hurts',
     emoji: '🗣️',
   },
   do_what_i_say: {
     title: 'Do What I Say',
-    subtitle: 'simple directions with visual support',
+    subtitle: 'give, put, take with visual support',
     emoji: '➡️',
   },
   build_the_sentence: {
     title: 'Build The Sentence',
-    subtitle: 'simple sentence frames',
+    subtitle: 'helpful sentence strips',
     emoji: '🧩',
   },
   picture_questions: {
     title: 'Picture Questions',
-    subtitle: 'what, where, who',
+    subtitle: 'what, where, who with picture support',
     emoji: '❓',
   },
   movement_search: {
     title: 'Movement Search',
-    subtitle: 'find, tap, move, and learn',
+    subtitle: 'movement inside short practice breaks',
     emoji: '🏃',
   },
 } as const;

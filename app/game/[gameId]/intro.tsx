@@ -14,13 +14,13 @@ function isGameId(value: string): value is GameId {
 }
 
 const INTRO_SUBTITLES: Record<GameId, string> = {
-  my_turn_your_turn: 'We will practice turns',
-  where_is_it: "Let's find where things go",
-  daily_phrase_practice: "Let's practice helpful phrases",
-  do_what_i_say: "Let's follow simple directions",
-  build_the_sentence: "Let's build a short sentence",
-  picture_questions: "Let's answer a picture question",
-  movement_search: "Let's move and find it",
+  my_turn_your_turn: 'We will practice turns later',
+  where_is_it: "Let's practice where things are",
+  daily_phrase_practice: "Let's practice words for real moments",
+  do_what_i_say: "Let's follow short directions together",
+  build_the_sentence: "Let's use a helpful sentence strip",
+  picture_questions: "Let's answer with picture support",
+  movement_search: "Let's use movement inside practice",
 };
 
 export default function GameIntroScreen() {
@@ -61,7 +61,7 @@ export default function GameIntroScreen() {
       <ThemedText style={styles.emoji}>{gameMeta?.emoji ?? '🎮'}</ThemedText>
       <ThemedText style={[styles.subtitle, { color: secondaryText }]}>{subtitle}</ThemedText>
       <ThemedText style={[styles.levelInfo, { color: secondaryText }]}>
-        Level {currentLevel} · {DEFAULT_SESSION_PROMPT_COUNT} prompts
+        Level {currentLevel} · {DEFAULT_SESSION_PROMPT_COUNT} short prompts
       </ThemedText>
 
       <Pressable

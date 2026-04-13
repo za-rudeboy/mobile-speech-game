@@ -177,8 +177,8 @@ function selectSessionPrompts(
   newPool: PromptTemplate[],
   sessionCount: number
 ) {
-  const masteredTarget = 4;
-  const newTarget = 2;
+  const newTarget = Math.max(1, Math.round(sessionCount * 0.3));
+  const masteredTarget = Math.max(sessionCount - newTarget, 1);
 
   const masteredSelected = masteredPool.slice(0, masteredTarget);
   const newSelected = newPool.slice(0, newTarget);

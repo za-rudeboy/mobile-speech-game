@@ -267,7 +267,25 @@ function getDistractorCount(difficultyLevel: PromptTemplate['difficulty_level'],
   return random() > 0.45 ? 2 : 1;
 }
 
-function resolveImageScene(relation: WhereRelation, random: () => number): ImageWhereIsItScene | null {
+function canUseDynamicSceneTokens(prompt: PromptTemplate) {
+  const tokenPattern = /\{subject_label\}|\{anchor_label\}/;
+
+  return (
+    tokenPattern.test(prompt.spoken_text) ||
+    tokenPattern.test(prompt.support_text ?? '') ||
+    tokenPattern.test(prompt.model_phrase ?? '')
+  );
+}
+
+function resolveImageScene(
+  prompt: PromptTemplate,
+  relation: WhereRelation,
+  random: () => number
+): ImageWhereIsItScene | null {
+  if (!canUseDynamicSceneTokens(prompt)) {
+    return null;
+  }
+
   const matchingScenes = IMAGE_SCENE_RECIPES.filter((scene) => scene.relation === relation);
 
   if (matchingScenes.length === 0) {
@@ -297,7 +315,7 @@ export function resolveWhereIsItScene(
 
   const random = createRandom(`${sessionId}:${prompt.prompt_id}:${promptIndex}:${prompt.correct_answer}`);
 
-  const imageScene = resolveImageScene(prompt.correct_answer, random);
+  const imageScene = resolveImageScene(prompt, prompt.correct_answer, random);
 
   if (imageScene) {
     return imageScene;

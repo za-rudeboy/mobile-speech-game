@@ -29,6 +29,14 @@ function parseSceneTokens(sceneKey: string) {
   return Array.from(sceneKey.replace(/\uFE0F/g, ''));
 }
 
+function tokenizeSupportPhrase(text: string) {
+  return text
+    .replace(/[.!?]/g, '')
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 function GenericEmojiScene({ sceneKey }: { sceneKey: string }) {
   const tokens = parseSceneTokens(sceneKey);
 
@@ -55,6 +63,24 @@ function getPersonEmoji(label: string) {
   }
 
   return '🙂';
+}
+
+function PhraseStrip({ text }: { text: string }) {
+  const tokens = tokenizeSupportPhrase(text);
+
+  if (tokens.length < 2) {
+    return null;
+  }
+
+  return (
+    <View style={styles.phraseStrip}>
+      {tokens.map((token, index) => (
+        <View key={`${token}-${index}`} style={styles.phraseChip}>
+          <ThemedText style={styles.phraseChipText}>{token}</ThemedText>
+        </View>
+      ))}
+    </View>
+  );
 }
 
 function renderScene(prompt: PromptTemplate, whereScene: ResolvedWhereIsItScene | null) {
@@ -107,7 +133,7 @@ function buildPromptLabel(prompt: PromptTemplate) {
   }
 
   if (prompt.prompt_type === 'build_sentence') {
-    return 'Build the sentence';
+    return 'Use the sentence strip';
   }
 
   if (prompt.prompt_type === 'follow_direction') {
@@ -115,7 +141,7 @@ function buildPromptLabel(prompt: PromptTemplate) {
   }
 
   if (prompt.prompt_type === 'repeat_and_use') {
-    return 'Pick the helpful phrase';
+    return 'What can Caelum say?';
   }
 
   if (prompt.prompt_type === 'picture_question') {
@@ -142,6 +168,7 @@ export default function GamePlayScreen() {
   const markPromptReplay = useGameStore((state) => state.markPromptReplay);
   const markPromptDemoShown = useGameStore((state) => state.markPromptDemoShown);
   const resetPromptSupport = useGameStore((state) => state.resetPromptSupport);
+  const promptSupport = useGameStore((state) => state.promptSupport);
   const speechEnabled = useGameStore((state) => state.speechEnabled);
   const feedbackDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const holdFeedbackNavigationRef = useRef(false);
@@ -276,7 +303,13 @@ export default function GamePlayScreen() {
   const isThreeOptionLayout = answerCount === 3;
   const promptLabel = buildPromptLabel(currentPrompt);
   const showSupportFrame =
-    currentPrompt.game_id === 'where_is_it' || currentPrompt.prompt_type === 'build_sentence';
+    currentPrompt.game_id === 'where_is_it' ||
+    currentPrompt.game_id === 'daily_phrase_practice' ||
+    currentPrompt.prompt_type === 'build_sentence';
+  const showPhraseStrip =
+    currentPrompt.game_id === 'daily_phrase_practice' ||
+    currentPrompt.prompt_type === 'build_sentence';
+  const showMeAgainDisabled = isDragToPlacePrompt && promptSupport.demoWasShown;
   const speakText = (text: string) => {
     if (!speechEnabled) {
       Speech.stop();
@@ -366,7 +399,7 @@ export default function GamePlayScreen() {
           accessibilityLabel="Replay prompt"
           onPress={replayPrompt}
           style={({ pressed }) => [styles.replayButton, pressed && styles.replayButtonPressed]}>
-          <ThemedText style={[styles.replayText, { color: tintColor }]}>Say it again</ThemedText>
+          <ThemedText style={[styles.replayText, { color: tintColor }]}>Hear it again</ThemedText>
         </Pressable>
       </View>
 
@@ -396,12 +429,13 @@ export default function GamePlayScreen() {
             <ThemedText
               style={[
                 styles.frameBadgeText,
-                currentPrompt.game_id === 'where_is_it' && [styles.whereSupportFrameText, { color: mutedText }],
+                currentPrompt.game_id === 'where_is_it' && styles.whereSupportFrameText,
               ]}>
-              {currentPrompt.game_id === 'where_is_it' ? resolvedSupportText : resolvedSpokenText}
+              {resolvedSupportText}
             </ThemedText>
           </View>
         ) : null}
+        {showPhraseStrip ? <PhraseStrip text={resolvedSupportText} /> : null}
       </View>
 
       <View style={styles.supportRow}>
@@ -413,7 +447,11 @@ export default function GamePlayScreen() {
             if (isDragToPlacePrompt) {
               setDragHighlightTargetLabel(currentPrompt.correct_answer);
             }
-            if (currentPrompt.game_id === 'where_is_it') {
+            if (
+              currentPrompt.game_id === 'where_is_it' ||
+              currentPrompt.game_id === 'daily_phrase_practice' ||
+              currentPrompt.prompt_type === 'build_sentence'
+            ) {
               speakText(resolvedSupportText);
             }
           }}
@@ -422,7 +460,11 @@ export default function GamePlayScreen() {
         </Pressable>
         <Pressable
           accessibilityRole="button"
+          disabled={showMeAgainDisabled}
           onPress={() => {
+            if (showMeAgainDisabled) {
+              return;
+            }
             markSupportAction('show_me_again');
             setSupportCardMode(null);
             if (isDragToPlacePrompt) {
@@ -432,7 +474,11 @@ export default function GamePlayScreen() {
             }
             speakText(resolvedSpokenText);
           }}
-          style={({ pressed }) => [styles.supportButton, pressed && styles.supportButtonPressed]}>
+          style={({ pressed }) => [
+            styles.supportButton,
+            showMeAgainDisabled && styles.supportButtonDisabled,
+            pressed && !showMeAgainDisabled && styles.supportButtonPressed,
+          ]}>
           <ThemedText style={styles.supportButtonText}>Show me again</ThemedText>
         </Pressable>
         <Pressable
@@ -448,7 +494,7 @@ export default function GamePlayScreen() {
 
       {supportCardMode === 'hint' ? (
         <View style={styles.supportCard}>
-          <ThemedText style={styles.supportCardTitle}>Try this</ThemedText>
+          <ThemedText style={styles.supportCardTitle}>Let&apos;s do it together</ThemedText>
           <ThemedText style={styles.supportCardText}>{resolvedSupportText}</ThemedText>
           <Pressable
             accessibilityRole="button"
@@ -647,6 +693,26 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 22,
     fontWeight: '600',
+    color: '#1F2937',
+  },
+  phraseStrip: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+  },
+  phraseChip: {
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  phraseChipText: {
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: '700',
+    color: '#1F2937',
   },
   whereSupportFrame: {
     alignSelf: 'stretch',
@@ -660,6 +726,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 23,
     fontWeight: '700',
+    color: '#1F2937',
   },
   supportRow: {
     flexDirection: 'row',
@@ -680,11 +747,15 @@ const styles = StyleSheet.create({
   supportButtonPressed: {
     opacity: 0.75,
   },
+  supportButtonDisabled: {
+    opacity: 0.45,
+  },
   supportButtonText: {
     fontSize: 15,
     lineHeight: 19,
     fontWeight: '700',
     textAlign: 'center',
+    color: '#1F2937',
   },
   supportCard: {
     borderRadius: 18,
@@ -700,10 +771,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 22,
     fontWeight: '700',
+    color: '#1F2937',
   },
   supportCardText: {
     fontSize: 17,
     lineHeight: 23,
+    color: '#1F2937',
   },
   supportCardCta: {
     alignSelf: 'flex-start',

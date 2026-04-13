@@ -8,14 +8,20 @@ This file tracks reputable external sources used to shape product decisions, lan
   Notes: broad SLP guidance for social communication, language, AAC, and intervention approaches for autistic children.
 - [ASHA: Articulation and Phonology](https://www.asha.org/practice-portal/clinical-topics/articulation-and-phonology/)
   Notes: practice portal reference for speech sound disorders, assessment, and intervention planning.
+- [ASHA: Spoken Language Disorders](https://www.asha.org/practice-portal/clinical-topics/spoken-language-disorders/)
+  Notes: supports family-centered, strengths-based intervention and keeping language work one step beyond the child's current level.
 - [NIDCD: Autism Spectrum Disorder: Communication Problems in Children](https://www.nidcd.nih.gov/health/autism-spectrum-disorder-communication-problems-children)
   Notes: NIH/NIDCD overview of communication differences and support considerations for autistic children.
+- [ASHA: Augmentative and Alternative Communication in Early Intervention](https://www.asha.org/practice/early-intervention-provider-support/augmentative-and-alternative-communication-in-early-intervention/)
+  Notes: useful for multimodal communication design, symbol modeling, routine-based supports, and the principle that AAC does not block speech development.
 
 ## Developmental Context Sources
 - [ASHA: Developmental Milestones](https://www.asha.org/public/developmental-milestones/)
   Notes: general communication milestone reference through birth to age 5.
 - [ASHA: Developmental Milestones Handouts](https://www.asha.org/public/developmental-milestones/handouts/)
   Notes: age-band milestone handouts that are useful for quick parent-facing references.
+- [ASHA: Activities to Encourage Speech and Language Development](https://www.asha.org/public/speech/development/activities-to-encourage-speech-and-language-development/)
+  Notes: practical routine-based parent strategies for modeling, choices, directions, picture discussion, and language support in everyday activities.
 - [CDC: 5-Year Milestones Checklist](https://www.cdc.gov/ncbddd/actearly/milestones/checklist/5-Year-Checklist-form.html)
   Notes: developmental milestone context for conversation, storytelling, and daily-function expectations around age 5.
 

@@ -2,12 +2,18 @@ import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 
+import { AudioReplayButton } from '@/components/audio-replay-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { DEFAULT_SESSION_PROMPT_COUNT, GAME_META } from '@/data/constants';
+import { usePromptAudio } from '@/hooks/use-prompt-audio';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useGameStore } from '@/store/game-store';
 import { GameId } from '@/types';
+
+const INTRO_AUDIO_BY_GAME: Partial<Record<GameId, number>> = {
+  where_is_it: require('../../../assets/audio/002_lets_play_where_is_it.mp3'),
+};
 
 function isGameId(value: string): value is GameId {
   return value in GAME_META;
@@ -28,6 +34,7 @@ export default function GameIntroScreen() {
   const { gameId } = useLocalSearchParams<{ gameId?: string | string[] }>();
   const startGame = useGameStore((state) => state.startGame);
   const currentLevel = useGameStore((state) => state.currentLevel);
+  const speechEnabled = useGameStore((state) => state.speechEnabled);
   const [isStarting, setIsStarting] = useState(false);
   const tintColor = useThemeColor({}, 'tint');
   const onTintText = useThemeColor({}, 'background');
@@ -36,6 +43,12 @@ export default function GameIntroScreen() {
   const activeGameId = resolvedGameId && isGameId(resolvedGameId) ? resolvedGameId : null;
   const gameMeta = activeGameId ? GAME_META[activeGameId] : null;
   const subtitle = activeGameId ? INTRO_SUBTITLES[activeGameId] : 'Let\'s play';
+  const introAudio = usePromptAudio({
+    audioSource: activeGameId ? INTRO_AUDIO_BY_GAME[activeGameId] : undefined,
+    autoPlay: activeGameId === 'where_is_it',
+    fallbackText: subtitle,
+    enabled: speechEnabled,
+  });
 
   const handleStart = async () => {
     if (!resolvedGameId || !isGameId(resolvedGameId)) {
@@ -43,6 +56,7 @@ export default function GameIntroScreen() {
     }
 
     setIsStarting(true);
+    await introAudio.stop();
     const started = await startGame(resolvedGameId);
     setIsStarting(false);
 
@@ -60,6 +74,18 @@ export default function GameIntroScreen() {
       </ThemedText>
       <ThemedText style={styles.emoji}>{gameMeta?.emoji ?? '🎮'}</ThemedText>
       <ThemedText style={[styles.subtitle, { color: secondaryText }]}>{subtitle}</ThemedText>
+      {activeGameId === 'where_is_it' ? (
+        <AudioReplayButton
+          accessibilityLabel="Replay where is it intro audio"
+          disabled={!introAudio.isAvailable}
+          isLoading={introAudio.isLoading}
+          isPlaying={introAudio.isPlaying}
+          label="Let's play Where Is It?"
+          onPress={() => {
+            void introAudio.play();
+          }}
+        />
+      ) : null}
       <ThemedText style={[styles.levelInfo, { color: secondaryText }]}>
         Level {currentLevel} · {DEFAULT_SESSION_PROMPT_COUNT} short prompts
       </ThemedText>

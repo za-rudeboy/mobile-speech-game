@@ -2,13 +2,17 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { AudioReplayButton } from '@/components/audio-replay-button';
 import { getWeeklyStats } from '@/db';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FIRST_WAVE_GAME_IDS, GAME_META, HOME_GAME_ORDER } from '@/data/constants';
+import { usePromptAudio } from '@/hooks/use-prompt-audio';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useGameStore } from '@/store/game-store';
 import type { GameId } from '@/types';
+
+const HOME_GREETING_AUDIO = require('../assets/audio/001_hi_caelum.mp3');
 
 interface GameCardProps {
   gameId: GameId;
@@ -62,8 +66,15 @@ export default function HomeScreen() {
   const mutedText = useThemeColor({ light: '#9BA1A6', dark: '#9BA1A6' }, 'text');
   const practiceCounterText = useThemeColor({ light: '#5F6870', dark: '#BDC4CB' }, 'text');
 
+  const speechEnabled = useGameStore((state) => state.speechEnabled);
   const todayPromptCount = useGameStore((state) => state.todayPromptCount);
   const [dbPromptCount, setDbPromptCount] = useState(0);
+  const greetingAudio = usePromptAudio({
+    audioSource: HOME_GREETING_AUDIO,
+    autoPlay: true,
+    fallbackText: 'Hi, Caelum.',
+    enabled: speechEnabled,
+  });
 
   useEffect(() => {
     getWeeklyStats()
@@ -90,6 +101,7 @@ export default function HomeScreen() {
           accessibilityLabel="Enter parent mode"
           delayLongPress={3000}
           onLongPress={() => {
+            void greetingAudio.stop();
             router.push('./parent');
           }}
           style={({ pressed }) => [styles.parentButton, pressed && styles.parentButtonPressed]}>
@@ -103,6 +115,18 @@ export default function HomeScreen() {
       <ThemedText style={[styles.helperText, { color: practiceCounterText }]}>
         Start with short, practical language practice.
       </ThemedText>
+      <View style={styles.audioButtonWrap}>
+        <AudioReplayButton
+          accessibilityLabel="Replay home greeting audio"
+          disabled={!greetingAudio.isAvailable}
+          isLoading={greetingAudio.isLoading}
+          isPlaying={greetingAudio.isPlaying}
+          label="Hi, Caelum"
+          onPress={() => {
+            void greetingAudio.play();
+          }}
+        />
+      </View>
 
       <ScrollView
         style={styles.cardList}
@@ -120,6 +144,7 @@ export default function HomeScreen() {
               emoji={meta.emoji}
               enabled={card.enabled}
               onStart={() => {
+                void greetingAudio.stop();
                 router.push(`./game/${card.gameId}/intro`);
               }}
             />
@@ -167,6 +192,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 15,
     lineHeight: 20,
+  },
+  audioButtonWrap: {
+    marginTop: 16,
   },
   cardList: {
     flex: 1,

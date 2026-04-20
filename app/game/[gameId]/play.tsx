@@ -3,6 +3,7 @@ import * as Speech from 'expo-speech';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { AudioReplayButton } from '@/components/audio-replay-button';
 import { DoWhatISayScene } from '@/components/games/do-what-i-say-scene';
 import { WhereIsItScene } from '@/components/games/where-is-it-scene';
 import { ThemedText } from '@/components/themed-text';
@@ -15,11 +16,21 @@ import {
 } from '@/data/content/where-is-it-scenes';
 import { DEFAULT_CHILD_NAME, DEFAULT_PARENT_LABEL } from '@/data/constants';
 import { resolveCopyTokens } from '@/data/content/mvp-v1';
+import { usePromptAudio } from '@/hooks/use-prompt-audio';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useGameStore } from '@/store/game-store';
 import { PromptTemplate } from '@/types';
 
 type SupportCardMode = 'hint' | 'break' | null;
+
+const DAILY_PHRASE_AUDIO_BY_PROMPT_ID: Partial<Record<string, number>> = {
+  prompt_daily_01: require('../../../assets/audio/006_caelum_wants_a_banana_what_does_he_say.mp3'),
+  prompt_daily_02: require('../../../assets/audio/005_I_cant_opn_box_what_do_i_say.mp3'),
+  prompt_daily_04: require('../../../assets/audio/008_caelum_hurt_hand_on_slide.mp3'),
+  prompt_daily_05: require('../../../assets/audio/010_caelum_is_thirsty.mp3'),
+  prompt_daily_07: require('../../../assets/audio/007_caelum_is_finished_washing.mp3'),
+  prompt_daily_12: require('../../../assets/audio/008_caelum_hurt_hand_on_slide.mp3'),
+};
 
 function parseSceneTokens(sceneKey: string) {
   if (sceneKey.includes('|')) {
@@ -219,9 +230,47 @@ export default function GamePlayScreen() {
 
     return resolveDoWhatISayScene(currentPrompt);
   }, [currentPrompt]);
+  const promptAudioSource = useMemo(() => {
+    if (!currentPrompt || currentPrompt.game_id !== 'daily_phrase_practice') {
+      return undefined;
+    }
+
+    return DAILY_PHRASE_AUDIO_BY_PROMPT_ID[currentPrompt.prompt_id];
+  }, [currentPrompt]);
+  const promptAudio = usePromptAudio({
+    audioSource: promptAudioSource,
+    autoPlay: true,
+    fallbackText: resolvedSpokenText,
+    enabled: speechEnabled,
+  });
+  const stopPromptAudioRef = useRef(promptAudio.stop);
+
+  useEffect(() => {
+    stopPromptAudioRef.current = promptAudio.stop;
+  }, [promptAudio.stop]);
+
+  async function stopPromptPlayback() {
+    await stopPromptAudioRef.current();
+  }
+
+  async function speakSupportText(text: string) {
+    if (!speechEnabled) {
+      await stopPromptPlayback();
+      Speech.stop();
+      return;
+    }
+
+    await stopPromptPlayback();
+    Speech.stop();
+    Speech.speak(text, {
+      rate: 0.85,
+      pitch: 1,
+    });
+  }
 
   useEffect(() => {
     if (!resolvedGameId || !currentGameId || currentGameId !== resolvedGameId || prompts.length === 0) {
+      void stopPromptPlayback();
       router.replace('/');
       return;
     }
@@ -236,11 +285,13 @@ export default function GamePlayScreen() {
         return;
       }
 
+      void stopPromptPlayback();
       router.replace(`/game/${resolvedGameId}/feedback` as Href);
       return;
     }
 
     if (gamePhase === 'complete' || gamePhase === 'idle') {
+      void stopPromptPlayback();
       router.replace('/');
     }
   }, [currentGameId, gamePhase, prompts.length, resolvedGameId, router]);
@@ -250,14 +301,10 @@ export default function GamePlayScreen() {
       if (feedbackDelayRef.current) {
         clearTimeout(feedbackDelayRef.current);
       }
+
+      void stopPromptPlayback();
     };
   }, []);
-
-  useEffect(() => {
-    if (!speechEnabled) {
-      Speech.stop();
-    }
-  }, [speechEnabled]);
 
   useEffect(() => {
     if (!currentPrompt || gamePhase !== 'playing') {
@@ -272,25 +319,9 @@ export default function GamePlayScreen() {
       clearTimeout(feedbackDelayRef.current);
       feedbackDelayRef.current = null;
     }
-    resetPromptSupport();
-    if (!speechEnabled) {
-      Speech.stop();
-      return;
-    }
-
     Speech.stop();
-    Speech.speak(resolvedSpokenText, {
-      rate: 0.85,
-      pitch: 1,
-    });
-  }, [
-    currentPrompt?.prompt_id,
-    gamePhase,
-    resetPromptSupport,
-    resolvedSpokenText,
-    currentPrompt,
-    speechEnabled,
-  ]);
+    resetPromptSupport();
+  }, [currentPrompt?.prompt_id, gamePhase, resetPromptSupport, currentPrompt]);
 
   if (!currentPrompt || gamePhase !== 'playing') {
     return <ThemedView style={styles.container} />;
@@ -310,22 +341,10 @@ export default function GamePlayScreen() {
     currentPrompt.game_id === 'daily_phrase_practice' ||
     currentPrompt.prompt_type === 'build_sentence';
   const showMeAgainDisabled = isDragToPlacePrompt && promptSupport.demoWasShown;
-  const speakText = (text: string) => {
-    if (!speechEnabled) {
-      Speech.stop();
-      return;
-    }
-
-    Speech.stop();
-    Speech.speak(text, {
-      rate: 0.85,
-      pitch: 1,
-    });
-  };
 
   const replayPrompt = () => {
     markPromptReplay();
-    speakText(resolvedSpokenText);
+    void promptAudio.play();
   };
 
   const navigateToFeedbackAfterDelay = () => {
@@ -333,6 +352,7 @@ export default function GamePlayScreen() {
     feedbackDelayRef.current = setTimeout(() => {
       holdFeedbackNavigationRef.current = false;
       feedbackDelayRef.current = null;
+      void stopPromptPlayback();
       router.replace(`/game/${resolvedGameId}/feedback` as Href);
     }, 650);
   };
@@ -360,6 +380,7 @@ export default function GamePlayScreen() {
 
     const selectedTokens = currentPrompt.prompt_type === 'build_sentence' ? [answer] : undefined;
     submitAnswer(answer, selectedTokens);
+    void stopPromptPlayback();
     router.replace(`/game/${resolvedGameId}/feedback` as Href);
   };
 
@@ -391,21 +412,31 @@ export default function GamePlayScreen() {
   return (
     <ThemedView style={styles.container}>
       <View style={styles.topRow}>
-        <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.backButton}>
-          <ThemedText style={[styles.backText, { color: tintColor }]}>Back</ThemedText>
-        </Pressable>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Replay prompt"
-          onPress={replayPrompt}
-          style={({ pressed }) => [styles.replayButton, pressed && styles.replayButtonPressed]}>
-          <ThemedText style={[styles.replayText, { color: tintColor }]}>Hear it again</ThemedText>
+          onPress={() => {
+            void stopPromptPlayback();
+            router.back();
+          }}
+          style={styles.backButton}>
+          <ThemedText style={[styles.backText, { color: tintColor }]}>Back</ThemedText>
         </Pressable>
       </View>
 
       <ThemedText style={[styles.promptCounter, { color: secondaryText }]}>
         Prompt {currentPromptIndex + 1} of {prompts.length}
       </ThemedText>
+
+      <View style={styles.audioButtonWrap}>
+        <AudioReplayButton
+          accessibilityLabel="Replay prompt audio"
+          disabled={!promptAudio.isAvailable}
+          isLoading={promptAudio.isLoading}
+          isPlaying={promptAudio.isPlaying}
+          label="Hear it again"
+          onPress={replayPrompt}
+        />
+      </View>
 
       <View style={[styles.sceneCard, { backgroundColor: cardColor }]}>
         <ThemedText style={[styles.promptLabel, { color: mutedText }]}>{promptLabel}</ThemedText>
@@ -452,7 +483,7 @@ export default function GamePlayScreen() {
               currentPrompt.game_id === 'daily_phrase_practice' ||
               currentPrompt.prompt_type === 'build_sentence'
             ) {
-              speakText(resolvedSupportText);
+              void speakSupportText(resolvedSupportText);
             }
           }}
           style={({ pressed }) => [styles.supportButton, pressed && styles.supportButtonPressed]}>
@@ -472,7 +503,7 @@ export default function GamePlayScreen() {
               setDragDemoNonce((value) => value + 1);
               markPromptDemoShown();
             }
-            speakText(resolvedSpokenText);
+            void promptAudio.play();
           }}
           style={({ pressed }) => [
             styles.supportButton,
@@ -597,23 +628,16 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     fontWeight: '600',
   },
-  replayButton: {
-    minHeight: 40,
-    justifyContent: 'center',
-    paddingHorizontal: 10,
-  },
   replayButtonPressed: {
     opacity: 0.7,
-  },
-  replayText: {
-    fontSize: 16,
-    lineHeight: 20,
-    fontWeight: '600',
   },
   promptCounter: {
     fontSize: 17,
     lineHeight: 22,
     fontWeight: '600',
+    marginBottom: 14,
+  },
+  audioButtonWrap: {
     marginBottom: 14,
   },
   sceneCard: {

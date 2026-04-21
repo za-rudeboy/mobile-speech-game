@@ -6,210 +6,125 @@ import { PromptTemplate } from '@/types';
 type WhereRelation = 'in' | 'on' | 'under' | 'next to';
 
 interface SceneToken {
-  emoji: string;
   label: string;
 }
 
-interface SceneRecipe {
-  subjects: SceneToken[];
-  anchors: SceneToken[];
-  distractors: SceneToken[];
-}
-
-interface ImageSceneRecipe {
-  imageSource: ImageSourcePropType;
-  subject: SceneToken;
-  anchor: SceneToken;
-  relation: WhereRelation;
-  recipeKey: string;
-}
-
-interface EmojiWhereIsItScene {
-  kind: 'emoji';
-  relation: WhereRelation;
-  subject: SceneToken;
-  anchor: SceneToken;
-  distractors: SceneToken[];
-  recipeKey: string;
-}
-
-interface ImageWhereIsItScene {
+interface WhereIsItImageScene {
   kind: 'image';
+  id: string;
   relation: WhereRelation;
   subject: SceneToken;
   anchor: SceneToken;
   imageSource: ImageSourcePropType;
-  recipeKey: string;
+  aspectRatio: number;
 }
 
-export type ResolvedWhereIsItScene = EmojiWhereIsItScene | ImageWhereIsItScene;
+export type ResolvedWhereIsItScene = WhereIsItImageScene;
 
-const SHARED_DISTRACTORS: SceneToken[] = [
-  { emoji: '⭐', label: 'star' },
-  { emoji: '🌼', label: 'flower' },
-  { emoji: '☁️', label: 'cloud' },
-  { emoji: '🪴', label: 'plant' },
-];
-
-const IMAGE_SCENE_RECIPES: ImageSceneRecipe[] = [
+const IMAGE_SCENES: WhereIsItImageScene[] = [
   {
-    imageSource: require('../../assets/images/where_is_it/car_in_box.png'),
-    subject: { emoji: '🚗', label: 'car' },
-    anchor: { emoji: '📦', label: 'box' },
+    kind: 'image',
+    id: 'car_in_box',
     relation: 'in',
-    recipeKey: 'image_car_in_box',
+    subject: { label: 'car' },
+    anchor: { label: 'box' },
+    imageSource: require('../../assets/images/where_is_it/car_in_box.png'),
+    aspectRatio: 1408 / 768,
   },
   {
+    kind: 'image',
+    id: 'car_next_to_box',
+    relation: 'next to',
+    subject: { label: 'car' },
+    anchor: { label: 'box' },
     imageSource: require('../../assets/images/where_is_it/car_next_to_box.png'),
-    subject: { emoji: '🚗', label: 'car' },
-    anchor: { emoji: '📦', label: 'box' },
-    relation: 'next to',
-    recipeKey: 'image_car_next_to_box',
+    aspectRatio: 1408 / 768,
   },
   {
+    kind: 'image',
+    id: 'car_next_to_log',
+    relation: 'next to',
+    subject: { label: 'car' },
+    anchor: { label: 'log' },
     imageSource: require('../../assets/images/where_is_it/car_next_to_log.png'),
-    subject: { emoji: '🚗', label: 'car' },
-    anchor: { emoji: '🪵', label: 'log' },
-    relation: 'next to',
-    recipeKey: 'image_car_next_to_log',
+    aspectRatio: 1408 / 768,
   },
   {
+    kind: 'image',
+    id: 'car_on_log',
+    relation: 'on',
+    subject: { label: 'car' },
+    anchor: { label: 'log' },
     imageSource: require('../../assets/images/where_is_it/car_on_log.png'),
-    subject: { emoji: '🚗', label: 'car' },
-    anchor: { emoji: '🪵', label: 'log' },
-    relation: 'on',
-    recipeKey: 'image_car_on_log',
+    aspectRatio: 1408 / 768,
   },
   {
+    kind: 'image',
+    id: 'car_under_box',
+    relation: 'under',
+    subject: { label: 'car' },
+    anchor: { label: 'box' },
     imageSource: require('../../assets/images/where_is_it/car_under_box.png'),
-    subject: { emoji: '🚗', label: 'car' },
-    anchor: { emoji: '📦', label: 'box' },
-    relation: 'under',
-    recipeKey: 'image_car_under_box',
+    aspectRatio: 1408 / 768,
   },
   {
-    imageSource: require('../../assets/images/where_is_it/cup_next_to_chair.png'),
-    subject: { emoji: '🥤', label: 'cup' },
-    anchor: { emoji: '🪑', label: 'chair' },
+    kind: 'image',
+    id: 'cup_next_to_chair',
     relation: 'next to',
-    recipeKey: 'image_cup_next_to_chair',
+    subject: { label: 'cup' },
+    anchor: { label: 'chair' },
+    imageSource: require('../../assets/images/where_is_it/cup_next_to_chair.png'),
+    aspectRatio: 1408 / 768,
   },
   {
-    imageSource: require('../../assets/images/where_is_it/cup_on_chair.png'),
-    subject: { emoji: '🥤', label: 'cup' },
-    anchor: { emoji: '🪑', label: 'chair' },
+    kind: 'image',
+    id: 'cup_on_chair',
     relation: 'on',
-    recipeKey: 'image_cup_on_chair',
+    subject: { label: 'cup' },
+    anchor: { label: 'chair' },
+    imageSource: require('../../assets/images/where_is_it/cup_on_chair.png'),
+    aspectRatio: 1408 / 768,
   },
   {
-    imageSource: require('../../assets/images/where_is_it/cup_under_chair.png'),
-    subject: { emoji: '🥤', label: 'cup' },
-    anchor: { emoji: '🪑', label: 'chair' },
+    kind: 'image',
+    id: 'cup_under_chair',
     relation: 'under',
-    recipeKey: 'image_cup_under_chair',
+    subject: { label: 'cup' },
+    anchor: { label: 'chair' },
+    imageSource: require('../../assets/images/where_is_it/cup_under_chair.png'),
+    aspectRatio: 1408 / 768,
+  },
+  {
+    kind: 'image',
+    id: 'apple_in_house',
+    relation: 'in',
+    subject: { label: 'apple' },
+    anchor: { label: 'house' },
+    imageSource: require('../../assets/images/where_is_it/apple_in_house.png'),
+    aspectRatio: 1407 / 768,
+  },
+  {
+    kind: 'image',
+    id: 'teddy_on_bed',
+    relation: 'on',
+    subject: { label: 'teddy' },
+    anchor: { label: 'bed' },
+    imageSource: require('../../assets/images/where_is_it/teddy_on_bed.png'),
+    aspectRatio: 1408 / 768,
+  },
+  {
+    kind: 'image',
+    id: 'teddy_under_bed',
+    relation: 'under',
+    subject: { label: 'teddy' },
+    anchor: { label: 'bed' },
+    imageSource: require('../../assets/images/where_is_it/teddy_under_bed.jpg'),
+    aspectRatio: 1170 / 1163,
   },
 ];
-
-const WHERE_IS_IT_SCENE_RECIPES: Record<string, SceneRecipe> = {
-  container: {
-    subjects: [
-      { emoji: '⚽', label: 'ball' },
-      { emoji: '🚗', label: 'car' },
-      { emoji: '🧸', label: 'teddy' },
-      { emoji: '🍎', label: 'apple' },
-      { emoji: '📘', label: 'book' },
-    ],
-    anchors: [
-      { emoji: '📦', label: 'box' },
-      { emoji: '🧺', label: 'basket' },
-      { emoji: '🪣', label: 'bucket' },
-    ],
-    distractors: [
-      { emoji: '🧱', label: 'block' },
-      { emoji: '🥤', label: 'cup' },
-      { emoji: '🪑', label: 'chair' },
-    ],
-  },
-  surface: {
-    subjects: [
-      { emoji: '🥤', label: 'cup' },
-      { emoji: '📘', label: 'book' },
-      { emoji: '🍎', label: 'apple' },
-      { emoji: '🥄', label: 'spoon' },
-      { emoji: '⚽', label: 'ball' },
-    ],
-    anchors: [
-      { emoji: '🪑', label: 'chair' },
-      { emoji: '🛋️', label: 'couch' },
-      { emoji: '🛏️', label: 'bed' },
-      { emoji: '🧱', label: 'block' },
-    ],
-    distractors: [
-      { emoji: '📦', label: 'box' },
-      { emoji: '🧸', label: 'teddy' },
-      { emoji: '🚗', label: 'car' },
-    ],
-  },
-  under: {
-    subjects: [
-      { emoji: '🧸', label: 'teddy' },
-      { emoji: '🚗', label: 'car' },
-      { emoji: '⚽', label: 'ball' },
-      { emoji: '🥤', label: 'cup' },
-      { emoji: '📘', label: 'book' },
-    ],
-    anchors: [
-      { emoji: '🪑', label: 'chair' },
-      { emoji: '🛏️', label: 'bed' },
-      { emoji: '🛋️', label: 'couch' },
-      { emoji: '🪵', label: 'table' },
-    ],
-    distractors: [
-      { emoji: '🧱', label: 'block' },
-      { emoji: '📦', label: 'box' },
-      { emoji: '🍎', label: 'apple' },
-    ],
-  },
-  adjacent: {
-    subjects: [
-      { emoji: '🚗', label: 'car' },
-      { emoji: '🥤', label: 'cup' },
-      { emoji: '🧸', label: 'teddy' },
-      { emoji: '⚽', label: 'ball' },
-      { emoji: '📘', label: 'book' },
-    ],
-    anchors: [
-      { emoji: '🧱', label: 'block' },
-      { emoji: '📦', label: 'box' },
-      { emoji: '🪑', label: 'chair' },
-      { emoji: '🛋️', label: 'couch' },
-    ],
-    distractors: [
-      { emoji: '🪴', label: 'plant' },
-      { emoji: '🌳', label: 'tree' },
-      { emoji: '🧺', label: 'basket' },
-    ],
-  },
-};
 
 function isWhereRelation(value: string): value is WhereRelation {
   return value === 'in' || value === 'on' || value === 'under' || value === 'next to';
-}
-
-function getRecipeKeyForRelation(relation: WhereRelation) {
-  if (relation === 'in') {
-    return 'container';
-  }
-
-  if (relation === 'on') {
-    return 'surface';
-  }
-
-  if (relation === 'under') {
-    return 'under';
-  }
-
-  return 'adjacent';
 }
 
 function createSeed(input: string) {
@@ -238,72 +153,6 @@ function pickOne<T>(items: T[], random: () => number) {
   return items[Math.floor(random() * items.length)];
 }
 
-function pickManyUnique(items: SceneToken[], count: number, random: () => number, excludeLabels: string[]) {
-  const pool = items.filter((item) => !excludeLabels.includes(item.label));
-  const selected: SceneToken[] = [];
-
-  while (pool.length > 0 && selected.length < count) {
-    const index = Math.floor(random() * pool.length);
-    selected.push(pool[index]);
-    pool.splice(index, 1);
-  }
-
-  return selected;
-}
-
-function getDistractorCount(difficultyLevel: PromptTemplate['difficulty_level'], random: () => number) {
-  if (difficultyLevel === 1) {
-    return 0;
-  }
-
-  if (difficultyLevel === 2) {
-    return random() > 0.55 ? 1 : 0;
-  }
-
-  if (difficultyLevel === 3) {
-    return 1;
-  }
-
-  return random() > 0.45 ? 2 : 1;
-}
-
-function canUseDynamicSceneTokens(prompt: PromptTemplate) {
-  const tokenPattern = /\{subject_label\}|\{anchor_label\}/;
-
-  return (
-    tokenPattern.test(prompt.spoken_text) ||
-    tokenPattern.test(prompt.support_text ?? '') ||
-    tokenPattern.test(prompt.model_phrase ?? '')
-  );
-}
-
-function resolveImageScene(
-  prompt: PromptTemplate,
-  relation: WhereRelation,
-  random: () => number
-): ImageWhereIsItScene | null {
-  if (!canUseDynamicSceneTokens(prompt)) {
-    return null;
-  }
-
-  const matchingScenes = IMAGE_SCENE_RECIPES.filter((scene) => scene.relation === relation);
-
-  if (matchingScenes.length === 0) {
-    return null;
-  }
-
-  const selectedScene = pickOne(matchingScenes, random);
-
-  return {
-    kind: 'image',
-    relation: selectedScene.relation,
-    subject: selectedScene.subject,
-    anchor: selectedScene.anchor,
-    imageSource: selectedScene.imageSource,
-    recipeKey: selectedScene.recipeKey,
-  };
-}
-
 export function resolveWhereIsItScene(
   prompt: PromptTemplate,
   sessionId: string,
@@ -313,42 +162,14 @@ export function resolveWhereIsItScene(
     return null;
   }
 
-  const random = createRandom(`${sessionId}:${prompt.prompt_id}:${promptIndex}:${prompt.correct_answer}`);
+  const matchingScenes = IMAGE_SCENES.filter((scene) => scene.relation === prompt.correct_answer);
 
-  const imageScene = resolveImageScene(prompt, prompt.correct_answer, random);
-
-  if (imageScene) {
-    return imageScene;
-  }
-
-  const recipeKey = prompt.scene_recipe_key ?? getRecipeKeyForRelation(prompt.correct_answer);
-  const recipe = WHERE_IS_IT_SCENE_RECIPES[recipeKey];
-
-  if (!recipe) {
+  if (matchingScenes.length === 0) {
     return null;
   }
 
-  const subject = pickOne(recipe.subjects, random);
-  const anchor = pickOne(
-    recipe.anchors.filter((candidate) => candidate.label !== subject.label),
-    random
-  );
-  const distractorCount = getDistractorCount(prompt.difficulty_level, random);
-  const distractors = pickManyUnique(
-    [...recipe.distractors, ...SHARED_DISTRACTORS],
-    distractorCount,
-    random,
-    [subject.label, anchor.label]
-  );
-
-  return {
-    kind: 'emoji',
-    relation: prompt.correct_answer,
-    subject,
-    anchor,
-    distractors,
-    recipeKey,
-  };
+  const random = createRandom(`${sessionId}:${prompt.prompt_id}:${promptIndex}:${prompt.correct_answer}`);
+  return pickOne(matchingScenes, random);
 }
 
 export function resolvePromptSceneTokens(

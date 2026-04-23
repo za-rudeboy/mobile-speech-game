@@ -1,7 +1,7 @@
 import { useIsFocused } from '@react-navigation/native';
 import { useAudioPlayer, useAudioPlayerStatus, type AudioSource } from 'expo-audio';
 import * as Speech from 'expo-speech';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 
 const PLAYER_OPTIONS = {
@@ -35,6 +35,8 @@ export function usePromptAudio({
   const status = useAudioPlayerStatus(player);
   const [isSpeakingFallback, setIsSpeakingFallback] = useState(false);
   const autoPlayArmedRef = useRef(true);
+  const isMountedRef = useRef(true);
+  const latestStatusRef = useRef(status);
   const playbackTokenRef = useRef(0);
   const trimmedFallbackText = fallbackText?.trim() ?? '';
   const hasRecordedAudio = audioSource !== undefined && audioSource !== null;
@@ -42,25 +44,45 @@ export function usePromptAudio({
   const isReadyToAutoPlay = hasRecordedAudio ? status.isLoaded : trimmedFallbackText.length > 0;
   const canAutoPlayInCurrentContext = autoPlay && Platform.OS !== 'web';
 
-  async function stop() {
-    playbackTokenRef.current += 1;
-    setIsSpeakingFallback(false);
-    Speech.stop();
+  const setFallbackSpeaking = useCallback((nextValue: boolean) => {
+    if (isMountedRef.current) {
+      setIsSpeakingFallback(nextValue);
+    }
+  }, []);
 
-    if (!player.playing && player.currentTime <= 0) {
+  const resetRecordedAudio = useCallback(async () => {
+    const currentStatus = latestStatusRef.current;
+
+    if (!currentStatus.isLoaded && !currentStatus.playing && currentStatus.currentTime <= 0) {
       return;
     }
 
-    player.pause();
+    try {
+      player.pause();
+    } catch {
+      return;
+    }
 
     try {
       await player.seekTo(0);
     } catch {
-      // Ignore seek failures for unloaded or already-reset players.
+      // Ignore seek failures for unloaded, released, or already-reset players.
     }
-  }
+  }, [player]);
 
-  async function play() {
+  const stop = useCallback(async () => {
+    playbackTokenRef.current += 1;
+    setFallbackSpeaking(false);
+    Speech.stop();
+
+    if (!hasRecordedAudio) {
+      return;
+    }
+
+    await resetRecordedAudio();
+  }, [hasRecordedAudio, resetRecordedAudio, setFallbackSpeaking]);
+
+  const play = useCallback(async () => {
     const playbackToken = playbackTokenRef.current + 1;
     playbackTokenRef.current = playbackToken;
 
@@ -72,14 +94,8 @@ export function usePromptAudio({
     Speech.stop();
 
     if (hasRecordedAudio) {
-      setIsSpeakingFallback(false);
-      player.pause();
-
-      try {
-        await player.seekTo(0);
-      } catch {
-        // The first replay can happen before the asset has fully loaded.
-      }
+      setFallbackSpeaking(false);
+      await resetRecordedAudio();
 
       if (playbackTokenRef.current !== playbackToken) {
         return false;
@@ -98,30 +114,41 @@ export function usePromptAudio({
       return false;
     }
 
-    setIsSpeakingFallback(true);
+    setFallbackSpeaking(true);
 
     Speech.speak(trimmedFallbackText, {
       pitch: 1,
       rate: 0.85,
       onDone: () => {
         if (playbackTokenRef.current === playbackToken) {
-          setIsSpeakingFallback(false);
+          setFallbackSpeaking(false);
         }
       },
       onError: () => {
         if (playbackTokenRef.current === playbackToken) {
-          setIsSpeakingFallback(false);
+          setFallbackSpeaking(false);
         }
       },
       onStopped: () => {
         if (playbackTokenRef.current === playbackToken) {
-          setIsSpeakingFallback(false);
+          setFallbackSpeaking(false);
         }
       },
     });
 
     return true;
-  }
+  }, [
+    enabled,
+    hasRecordedAudio,
+    resetRecordedAudio,
+    setFallbackSpeaking,
+    stop,
+    trimmedFallbackText,
+  ]);
+
+  useEffect(() => {
+    latestStatusRef.current = status;
+  }, [status]);
 
   useEffect(() => {
     if (!enabled || !isFocused) {
@@ -150,10 +177,24 @@ export function usePromptAudio({
   }, [canAutoPlayInCurrentContext, enabled, isAvailable, isFocused, isReadyToAutoPlay]);
 
   useEffect(() => {
+    isMountedRef.current = true;
+
     return () => {
-      void stop();
+      isMountedRef.current = false;
+      playbackTokenRef.current += 1;
+      Speech.stop();
+
+      if (!hasRecordedAudio) {
+        return;
+      }
+
+      try {
+        player.pause();
+      } catch {
+        // Ignore cleanup failures after the native object has already been released.
+      }
     };
-  }, []);
+  }, [hasRecordedAudio, player]);
 
   return {
     isAvailable,

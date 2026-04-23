@@ -1,23 +1,25 @@
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AudioReplayButton } from '@/components/audio-replay-button';
 import { DoWhatISayScene } from '@/components/games/do-what-i-say-scene';
 import { WhereIsItScene } from '@/components/games/where-is-it-scene';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { PillButton, ProgressBar, SurfaceCard } from '@/components/ui/app-primitives';
+import { childTheme } from '@/constants/semantic-theme';
 import { resolveDoWhatISayScene } from '@/data/content/do-what-i-say-scenes';
+import { resolveCopyTokens } from '@/data/content/mvp-v1';
+import { DEFAULT_CHILD_NAME, DEFAULT_PARENT_LABEL } from '@/data/constants';
 import {
   ResolvedWhereIsItScene,
   resolvePromptSceneTokens,
   resolveWhereIsItScene,
 } from '@/data/content/where-is-it-scenes';
-import { DEFAULT_CHILD_NAME, DEFAULT_PARENT_LABEL } from '@/data/constants';
-import { resolveCopyTokens } from '@/data/content/mvp-v1';
 import { usePromptAudio } from '@/hooks/use-prompt-audio';
-import { useThemeColor } from '@/hooks/use-theme-color';
 import { useGameStore } from '@/store/game-store';
 import { PromptTemplate } from '@/types';
 
@@ -87,32 +89,42 @@ function PhraseStrip({ text }: { text: string }) {
     <View style={styles.phraseStrip}>
       {tokens.map((token, index) => (
         <View key={`${token}-${index}`} style={styles.phraseChip}>
-          <ThemedText style={styles.phraseChipText}>{token}</ThemedText>
+          <ThemedText role="childLabel" style={styles.phraseChipText}>
+            {token}
+          </ThemedText>
         </View>
       ))}
     </View>
   );
 }
 
-function renderScene(prompt: PromptTemplate, whereScene: ResolvedWhereIsItScene | null) {
+function renderScene(
+  prompt: PromptTemplate,
+  whereScene: ResolvedWhereIsItScene | null,
+  compact: boolean
+) {
   if (prompt.game_id === 'my_turn_your_turn') {
     return (
       <View style={styles.emojiRow}>
         <View style={styles.personWithLabel}>
           <ThemedText style={styles.personEmoji}>🧒</ThemedText>
-          <ThemedText style={styles.personLabel}>{DEFAULT_CHILD_NAME}</ThemedText>
+          <ThemedText role="childLabel" style={styles.personLabel}>
+            {DEFAULT_CHILD_NAME}
+          </ThemedText>
         </View>
         <ThemedText style={styles.objectEmoji}>{parseSceneTokens(prompt.visual_scene_key)[0] ?? '🎯'}</ThemedText>
         <View style={styles.personWithLabel}>
           <ThemedText style={styles.personEmoji}>👨</ThemedText>
-          <ThemedText style={styles.personLabel}>{DEFAULT_PARENT_LABEL}</ThemedText>
+          <ThemedText role="childLabel" style={styles.personLabel}>
+            {DEFAULT_PARENT_LABEL}
+          </ThemedText>
         </View>
       </View>
     );
   }
 
   if (prompt.game_id === 'where_is_it') {
-    return <WhereIsItScene scene={whereScene} />;
+    return <WhereIsItScene compact={compact} scene={whereScene} />;
   }
 
   return <GenericEmojiScene sceneKey={prompt.visual_scene_key} />;
@@ -181,6 +193,8 @@ export default function GamePlayScreen() {
   const resetPromptSupport = useGameStore((state) => state.resetPromptSupport);
   const promptSupport = useGameStore((state) => state.promptSupport);
   const speechEnabled = useGameStore((state) => state.speechEnabled);
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const feedbackDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const holdFeedbackNavigationRef = useRef(false);
   const resolvedGameId = Array.isArray(gameId) ? gameId[0] : gameId;
@@ -189,11 +203,6 @@ export default function GamePlayScreen() {
   const [dragDemoNonce, setDragDemoNonce] = useState(0);
   const [dragIncorrectAttemptCount, setDragIncorrectAttemptCount] = useState(0);
   const [dragHighlightTargetLabel, setDragHighlightTargetLabel] = useState<string | null>(null);
-  const tintColor = useThemeColor({}, 'tint');
-  const actionButtonColor = useThemeColor({ light: '#4A90D9', dark: '#5FA8F5' }, 'tint');
-  const cardColor = useThemeColor({ light: '#eef6fb', dark: '#1e3138' }, 'background');
-  const secondaryText = useThemeColor({}, 'icon');
-  const mutedText = useThemeColor({ light: '#60707F', dark: '#B7C1C8' }, 'text');
   const resolvedWhereScene = useMemo(() => {
     if (!currentPrompt) {
       return null;
@@ -201,7 +210,6 @@ export default function GamePlayScreen() {
 
     return resolveWhereIsItScene(currentPrompt, activeSessionId, currentPromptIndex);
   }, [activeSessionId, currentPrompt, currentPromptIndex]);
-
   const resolvedSpokenText = useMemo(() => {
     if (!currentPrompt) {
       return '';
@@ -212,7 +220,6 @@ export default function GamePlayScreen() {
       parentLabel: DEFAULT_PARENT_LABEL,
     });
   }, [currentPrompt, resolvedWhereScene]);
-
   const resolvedSupportText = useMemo(() => {
     if (!currentPrompt) {
       return '';
@@ -248,6 +255,10 @@ export default function GamePlayScreen() {
   useEffect(() => {
     stopPromptAudioRef.current = promptAudio.stop;
   }, [promptAudio.stop]);
+
+  const availableHeight = windowHeight - insets.top - insets.bottom;
+  const isCompactLayout = availableHeight <= 780 || windowWidth <= 390;
+  const isVeryCompactLayout = availableHeight <= 700;
 
   async function stopPromptPlayback() {
     await stopPromptAudioRef.current();
@@ -324,7 +335,7 @@ export default function GamePlayScreen() {
   }, [currentPrompt?.prompt_id, gamePhase, resetPromptSupport, currentPrompt]);
 
   if (!currentPrompt || gamePhase !== 'playing') {
-    return <ThemedView style={styles.container} />;
+    return <ThemedView style={styles.screen} />;
   }
 
   const answerCount = currentPrompt.answer_options.length;
@@ -410,250 +421,337 @@ export default function GamePlayScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <View style={styles.topRow}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            void stopPromptPlayback();
-            router.back();
-          }}
-          style={styles.backButton}>
-          <ThemedText style={[styles.backText, { color: tintColor }]}>Back</ThemedText>
-        </Pressable>
-      </View>
+    <ThemedView style={styles.screen}>
+      <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
+        <View
+          style={[
+            styles.container,
+            isCompactLayout && styles.containerCompact,
+            isVeryCompactLayout && styles.containerVeryCompact,
+          ]}>
+        <View style={styles.topRow}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              void stopPromptPlayback();
+              router.back();
+            }}
+            style={({ pressed }) => [
+              styles.backButton,
+              isCompactLayout && styles.backButtonCompact,
+              pressed && styles.backButtonPressed,
+            ]}>
+            <ThemedText
+              role="childLabel"
+              style={[styles.backText, isCompactLayout && styles.backTextCompact]}>
+              Back
+            </ThemedText>
+          </Pressable>
+          <ThemedText
+            role="childLabel"
+            style={[styles.promptCounter, isCompactLayout && styles.promptCounterCompact]}>
+            Prompt {currentPromptIndex + 1} of {prompts.length}
+          </ThemedText>
+        </View>
 
-      <ThemedText style={[styles.promptCounter, { color: secondaryText }]}>
-        Prompt {currentPromptIndex + 1} of {prompts.length}
-      </ThemedText>
+        <ProgressBar compact={isCompactLayout} current={currentPromptIndex + 1} total={prompts.length} />
 
-      <View style={styles.audioButtonWrap}>
         <AudioReplayButton
           accessibilityLabel="Replay prompt audio"
+          compact={isCompactLayout}
           disabled={!promptAudio.isAvailable}
           isLoading={promptAudio.isLoading}
           isPlaying={promptAudio.isPlaying}
           label="Hear it again"
           onPress={replayPrompt}
         />
-      </View>
 
-      <View style={[styles.sceneCard, { backgroundColor: cardColor }]}>
-        <ThemedText style={[styles.promptLabel, { color: mutedText }]}>{promptLabel}</ThemedText>
-        {isDragToPlacePrompt ? (
-          <DoWhatISayScene
-            scene={resolvedDoWhatISayScene}
-            demoNonce={dragDemoNonce}
-            highlightTargetLabel={dragHighlightTargetLabel}
-            onResolved={handleDragResolved}
-          />
-        ) : (
-          renderScene(currentPrompt, resolvedWhereScene)
-        )}
-        <ThemedText style={styles.spokenText}>{resolvedSpokenText}</ThemedText>
-        {showSupportFrame ? (
-          <View
+        <SurfaceCard
+          style={[
+            styles.sceneCard,
+            isCompactLayout && styles.sceneCardCompact,
+            isVeryCompactLayout && styles.sceneCardVeryCompact,
+          ]}>
+          <ThemedText role="childLabel" style={[styles.promptLabel, isCompactLayout && styles.promptLabelCompact]}>
+            {promptLabel}
+          </ThemedText>
+          {isDragToPlacePrompt ? (
+            <DoWhatISayScene
+              compact={isCompactLayout}
+              scene={resolvedDoWhatISayScene}
+              demoNonce={dragDemoNonce}
+              highlightTargetLabel={dragHighlightTargetLabel}
+              onResolved={handleDragResolved}
+            />
+          ) : (
+            renderScene(currentPrompt, resolvedWhereScene, isCompactLayout)
+          )}
+          <ThemedText
+            role="childTitle"
             style={[
-              styles.frameBadge,
-              currentPrompt.game_id === 'where_is_it' && styles.whereSupportFrame,
+              styles.spokenText,
+              isCompactLayout && styles.spokenTextCompact,
+              isVeryCompactLayout && styles.spokenTextVeryCompact,
             ]}>
-            <ThemedText
+            {resolvedSpokenText}
+          </ThemedText>
+          {showSupportFrame ? (
+            <View
               style={[
-                styles.frameBadgeText,
-                currentPrompt.game_id === 'where_is_it' && styles.whereSupportFrameText,
+                styles.frameBadge,
+                isCompactLayout && styles.frameBadgeCompact,
+                currentPrompt.game_id === 'where_is_it' && styles.whereSupportFrame,
               ]}>
+              <ThemedText
+                role="childBody"
+                style={[styles.frameBadgeText, isCompactLayout && styles.frameBadgeTextCompact]}>
+                {resolvedSupportText}
+              </ThemedText>
+            </View>
+          ) : null}
+          {showPhraseStrip ? <PhraseStrip text={resolvedSupportText} /> : null}
+        </SurfaceCard>
+
+        <View style={[styles.supportRow, isCompactLayout && styles.supportRowCompact]}>
+          <PillButton
+            accessibilityRole="button"
+            compact={isCompactLayout}
+            label="Help"
+            labelStyle={isCompactLayout ? styles.supportButtonLabelCompact : undefined}
+            onPress={() => {
+              markSupportAction('help');
+              setSupportCardMode('hint');
+              if (isDragToPlacePrompt) {
+                setDragHighlightTargetLabel(currentPrompt.correct_answer);
+              }
+              if (
+                currentPrompt.game_id === 'where_is_it' ||
+                currentPrompt.game_id === 'daily_phrase_practice' ||
+                currentPrompt.prompt_type === 'build_sentence'
+              ) {
+                void speakSupportText(resolvedSupportText);
+              }
+            }}
+            style={styles.supportButton}
+            tone="secondary"
+          />
+          <PillButton
+            accessibilityRole="button"
+            compact={isCompactLayout}
+            disabled={showMeAgainDisabled}
+            label="Show me again"
+            labelStyle={isCompactLayout ? styles.supportButtonLabelCompact : undefined}
+            onPress={() => {
+              if (showMeAgainDisabled) {
+                return;
+              }
+              markSupportAction('show_me_again');
+              setSupportCardMode(null);
+              if (isDragToPlacePrompt) {
+                setDragHighlightTargetLabel(currentPrompt.correct_answer);
+                setDragDemoNonce((value) => value + 1);
+                markPromptDemoShown();
+              }
+              void promptAudio.play();
+            }}
+            style={styles.supportButton}
+            tone="secondary"
+          />
+          <PillButton
+            accessibilityRole="button"
+            compact={isCompactLayout}
+            label="Break"
+            labelStyle={isCompactLayout ? styles.supportButtonLabelCompact : undefined}
+            onPress={() => {
+              markSupportAction('break');
+              setSupportCardMode('break');
+            }}
+            style={styles.supportButton}
+            tone="secondary"
+          />
+        </View>
+
+        {supportCardMode === 'hint' ? (
+          <SurfaceCard style={[styles.supportCard, isCompactLayout && styles.supportCardCompact]}>
+            <ThemedText role="childLabel">Let&apos;s do it together</ThemedText>
+            <ThemedText role="childBody" style={[styles.supportCardText, isCompactLayout && styles.supportCardTextCompact]}>
               {resolvedSupportText}
             </ThemedText>
-          </View>
+            <PillButton
+              compact={isCompactLayout}
+              label="Try again"
+              onPress={dismissSupportCard}
+              style={styles.supportCardButton}
+            />
+          </SurfaceCard>
         ) : null}
-        {showPhraseStrip ? <PhraseStrip text={resolvedSupportText} /> : null}
-      </View>
 
-      <View style={styles.supportRow}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            markSupportAction('help');
-            setSupportCardMode('hint');
-            if (isDragToPlacePrompt) {
-              setDragHighlightTargetLabel(currentPrompt.correct_answer);
-            }
-            if (
-              currentPrompt.game_id === 'where_is_it' ||
-              currentPrompt.game_id === 'daily_phrase_practice' ||
-              currentPrompt.prompt_type === 'build_sentence'
-            ) {
-              void speakSupportText(resolvedSupportText);
-            }
-          }}
-          style={({ pressed }) => [styles.supportButton, pressed && styles.supportButtonPressed]}>
-          <ThemedText style={styles.supportButtonText}>Help</ThemedText>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          disabled={showMeAgainDisabled}
-          onPress={() => {
-            if (showMeAgainDisabled) {
-              return;
-            }
-            markSupportAction('show_me_again');
-            setSupportCardMode(null);
-            if (isDragToPlacePrompt) {
-              setDragHighlightTargetLabel(currentPrompt.correct_answer);
-              setDragDemoNonce((value) => value + 1);
-              markPromptDemoShown();
-            }
-            void promptAudio.play();
-          }}
-          style={({ pressed }) => [
-            styles.supportButton,
-            showMeAgainDisabled && styles.supportButtonDisabled,
-            pressed && !showMeAgainDisabled && styles.supportButtonPressed,
+        {supportCardMode === 'break' ? (
+          <SurfaceCard style={[styles.supportCard, isCompactLayout && styles.supportCardCompact]}>
+            <ThemedText role="childLabel">Movement break</ThemedText>
+            <ThemedText role="childBody" style={[styles.supportCardText, isCompactLayout && styles.supportCardTextCompact]}>
+              Stretch, wiggle, or jump a few times. Tap when you are ready to come back.
+            </ThemedText>
+            <PillButton
+              compact={isCompactLayout}
+              label="I'm ready"
+              onPress={() => setSupportCardMode(null)}
+              style={styles.supportCardButton}
+            />
+          </SurfaceCard>
+        ) : null}
+
+        <View
+          style={[
+            styles.answersWrap,
+            isCompactLayout && styles.answersWrapCompact,
+            isTapObjectPrompt || isTwoOptionLayout
+              ? styles.answersWrapRow
+              : isThreeOptionLayout
+                ? styles.answersWrapStack
+                : styles.answersWrapGrid,
           ]}>
-          <ThemedText style={styles.supportButtonText}>Show me again</ThemedText>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            markSupportAction('break');
-            setSupportCardMode('break');
-          }}
-          style={({ pressed }) => [styles.supportButton, pressed && styles.supportButtonPressed]}>
-          <ThemedText style={styles.supportButtonText}>Break</ThemedText>
-        </Pressable>
-      </View>
+          {currentPrompt.answer_options.map((answer) => {
+            const resolvedAnswerLabel = resolveCopyTokens(answer, {
+              childName: DEFAULT_CHILD_NAME,
+              parentLabel: DEFAULT_PARENT_LABEL,
+            });
 
-      {supportCardMode === 'hint' ? (
-        <View style={styles.supportCard}>
-          <ThemedText style={styles.supportCardTitle}>Let&apos;s do it together</ThemedText>
-          <ThemedText style={styles.supportCardText}>{resolvedSupportText}</ThemedText>
-          <Pressable
-            accessibilityRole="button"
-            onPress={dismissSupportCard}
-            style={({ pressed }) => [styles.supportCardCta, pressed && styles.replayButtonPressed]}>
-            <ThemedText style={styles.supportCardCtaText}>Try again</ThemedText>
-          </Pressable>
-        </View>
-      ) : null}
+            if (isTapObjectPrompt) {
+              return (
+                <Pressable
+                  accessibilityRole="button"
+                  key={answer}
+                  onPress={() => handleAnswerPress(answer)}
+                  style={({ pressed }) => [
+                    styles.personCard,
+                    isCompactLayout && styles.personCardCompact,
+                    pressed && styles.answerPressed,
+                  ]}>
+                  <ThemedText style={[styles.personCardEmoji, isCompactLayout && styles.personCardEmojiCompact]}>
+                    {getPersonEmoji(resolvedAnswerLabel)}
+                  </ThemedText>
+                  <ThemedText role="childButton" style={[styles.personCardLabel, isCompactLayout && styles.personCardLabelCompact]}>
+                    {resolvedAnswerLabel}
+                  </ThemedText>
+                </Pressable>
+              );
+            }
 
-      {supportCardMode === 'break' ? (
-        <View style={styles.supportCard}>
-          <ThemedText style={styles.supportCardTitle}>Movement break</ThemedText>
-          <ThemedText style={styles.supportCardText}>
-            Stretch, wiggle, or jump a few times. Tap when you are ready to come back.
-          </ThemedText>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setSupportCardMode(null)}
-            style={({ pressed }) => [styles.supportCardCta, pressed && styles.replayButtonPressed]}>
-            <ThemedText style={styles.supportCardCtaText}>I&apos;m ready</ThemedText>
-          </Pressable>
-        </View>
-      ) : null}
-
-      <View
-        style={[
-          styles.answersWrap,
-          isTapObjectPrompt || isTwoOptionLayout
-            ? styles.answersWrapRow
-            : isThreeOptionLayout
-              ? styles.answersWrapStack
-              : styles.answersWrapGrid,
-        ]}>
-        {currentPrompt.answer_options.map((answer) => {
-          const resolvedAnswerLabel = resolveCopyTokens(answer, {
-            childName: DEFAULT_CHILD_NAME,
-            parentLabel: DEFAULT_PARENT_LABEL,
-          });
-
-          if (isTapObjectPrompt) {
             return (
               <Pressable
                 accessibilityRole="button"
                 key={answer}
                 onPress={() => handleAnswerPress(answer)}
                 style={({ pressed }) => [
-                  styles.personCard,
-                  { backgroundColor: actionButtonColor, opacity: pressed ? 0.85 : 1 },
+                  styles.answerButton,
+                  isCompactLayout && styles.answerButtonCompact,
+                  isTwoOptionLayout
+                    ? styles.answerButtonRow
+                    : isThreeOptionLayout
+                      ? styles.answerButtonStack
+                      : styles.answerButtonGrid,
+                  pressed && styles.answerPressed,
                 ]}>
-                <ThemedText style={styles.personCardEmoji}>{getPersonEmoji(resolvedAnswerLabel)}</ThemedText>
-                <ThemedText style={styles.personCardLabel}>{resolvedAnswerLabel}</ThemedText>
+                <ThemedText role="childButton" style={[styles.answerText, isCompactLayout && styles.answerTextCompact]}>
+                  {resolvedAnswerLabel}
+                </ThemedText>
               </Pressable>
             );
-          }
-
-          return (
-            <Pressable
-              accessibilityRole="button"
-              key={answer}
-              onPress={() => handleAnswerPress(answer)}
-              style={({ pressed }) => [
-                styles.answerButton,
-                isTwoOptionLayout
-                  ? styles.answerButtonRow
-                  : isThreeOptionLayout
-                    ? styles.answerButtonStack
-                    : styles.answerButtonGrid,
-                { backgroundColor: actionButtonColor, opacity: pressed ? 0.85 : 1 },
-              ]}>
-              <ThemedText style={styles.answerText}>{resolvedAnswerLabel}</ThemedText>
-            </Pressable>
-          );
-        })}
-      </View>
+          })}
+        </View>
+        </View>
+      </SafeAreaView>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: childTheme.background,
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: childTheme.background,
+  },
   container: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: childTheme.pagePadding,
     paddingTop: 20,
     paddingBottom: 28,
+    gap: 14,
+  },
+  containerCompact: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
+    gap: 10,
+  },
+  containerVeryCompact: {
+    paddingTop: 6,
+    gap: 8,
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    gap: 12,
   },
   backButton: {
-    minHeight: 48,
+    minHeight: 44,
+    paddingHorizontal: 14,
     justifyContent: 'center',
-    paddingHorizontal: 8,
+    borderRadius: childTheme.radiusPill,
+    backgroundColor: childTheme.surface,
+    borderWidth: 1,
+    borderColor: childTheme.outline,
+  },
+  backButtonCompact: {
+    minHeight: 38,
+    paddingHorizontal: 12,
+  },
+  backButtonPressed: {
+    opacity: 0.75,
   },
   backText: {
-    fontSize: 22,
-    lineHeight: 28,
-    fontWeight: '600',
+    color: childTheme.textMuted,
   },
-  replayButtonPressed: {
-    opacity: 0.7,
+  backTextCompact: {
+    fontSize: 16,
+    lineHeight: 20,
   },
   promptCounter: {
-    fontSize: 17,
-    lineHeight: 22,
-    fontWeight: '600',
-    marginBottom: 14,
+    color: childTheme.textSoft,
   },
-  audioButtonWrap: {
-    marginBottom: 14,
+  promptCounterCompact: {
+    fontSize: 16,
+    lineHeight: 20,
   },
   sceneCard: {
-    borderRadius: 24,
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     paddingVertical: 20,
-    marginBottom: 14,
+    gap: 10,
+    flexShrink: 1,
+  },
+  sceneCardCompact: {
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    gap: 8,
+  },
+  sceneCardVeryCompact: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 6,
   },
   promptLabel: {
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    color: childTheme.textSoft,
+  },
+  promptLabelCompact: {
     fontSize: 14,
     lineHeight: 18,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginBottom: 12,
-    textAlign: 'center',
   },
   emojiRow: {
     flexDirection: 'row',
@@ -671,10 +769,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   personLabel: {
-    fontSize: 18,
-    lineHeight: 22,
-    fontWeight: '700',
     textAlign: 'center',
+    color: childTheme.textMuted,
   },
   objectEmoji: {
     fontSize: 62,
@@ -687,137 +783,113 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     marginBottom: 14,
-    minHeight: 104,
+    minHeight: 116,
   },
   genericSceneToken: {
-    minWidth: 72,
+    minWidth: 76,
+    minHeight: 76,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: childTheme.surfaceRaised,
   },
   genericSceneEmoji: {
-    fontSize: 52,
-    lineHeight: 58,
+    fontSize: 48,
+    lineHeight: 54,
   },
   spokenText: {
+    textAlign: 'center',
+  },
+  spokenTextCompact: {
     fontSize: 24,
     lineHeight: 30,
-    textAlign: 'center',
-    fontWeight: '700',
-    marginTop: 8,
+  },
+  spokenTextVeryCompact: {
+    fontSize: 22,
+    lineHeight: 28,
   },
   frameBadge: {
-    marginTop: 12,
+    marginTop: 6,
     alignSelf: 'center',
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.65)',
-    paddingHorizontal: 14,
+    borderRadius: childTheme.radiusMd,
+    backgroundColor: childTheme.surfaceRaised,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  frameBadgeCompact: {
+    marginTop: 2,
+    paddingHorizontal: 12,
     paddingVertical: 8,
   },
   frameBadgeText: {
-    fontSize: 18,
+    textAlign: 'center',
+    color: childTheme.textMuted,
+  },
+  frameBadgeTextCompact: {
+    fontSize: 16,
     lineHeight: 22,
-    fontWeight: '600',
-    color: '#1F2937',
   },
   phraseStrip: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: 8,
-    marginTop: 12,
+    marginTop: 4,
   },
   phraseChip: {
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderRadius: childTheme.radiusPill,
+    backgroundColor: childTheme.surfaceMuted,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
   phraseChipText: {
-    fontSize: 16,
-    lineHeight: 20,
-    fontWeight: '700',
-    color: '#1F2937',
+    color: childTheme.text,
   },
   whereSupportFrame: {
     alignSelf: 'stretch',
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.78)',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  whereSupportFrameText: {
-    textAlign: 'center',
-    fontSize: 17,
-    lineHeight: 23,
-    fontWeight: '700',
-    color: '#1F2937',
   },
   supportRow: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 12,
+  },
+  supportRowCompact: {
+    gap: 8,
   },
   supportButton: {
     flex: 1,
-    minHeight: 48,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#C9D3DD',
-    backgroundColor: '#FFFFFF',
+    minHeight: 56,
     paddingHorizontal: 10,
   },
-  supportButtonPressed: {
-    opacity: 0.75,
-  },
-  supportButtonDisabled: {
-    opacity: 0.45,
-  },
-  supportButtonText: {
+  supportButtonLabelCompact: {
     fontSize: 15,
-    lineHeight: 19,
-    fontWeight: '700',
-    textAlign: 'center',
-    color: '#1F2937',
+    lineHeight: 18,
   },
   supportCard: {
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#D8E1EA',
-    backgroundColor: '#F7FBFF',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    marginBottom: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
     gap: 10,
   },
-  supportCardTitle: {
-    fontSize: 18,
-    lineHeight: 22,
-    fontWeight: '700',
-    color: '#1F2937',
+  supportCardCompact: {
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    gap: 8,
   },
   supportCardText: {
-    fontSize: 17,
-    lineHeight: 23,
-    color: '#1F2937',
+    color: childTheme.textMuted,
   },
-  supportCardCta: {
-    alignSelf: 'flex-start',
-    borderRadius: 12,
-    backgroundColor: '#4A90D9',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  supportCardCtaText: {
-    color: '#FFFFFF',
+  supportCardTextCompact: {
     fontSize: 16,
-    lineHeight: 20,
-    fontWeight: '700',
+    lineHeight: 22,
+  },
+  supportCardButton: {
+    alignSelf: 'flex-start',
+    minWidth: 152,
   },
   answersWrap: {
-    flex: 1,
     gap: 12,
+  },
+  answersWrapCompact: {
+    gap: 8,
   },
   answersWrapRow: {
     flexDirection: 'row',
@@ -830,12 +902,18 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   answerButton: {
-    minHeight: 86,
-    borderRadius: 18,
+    minHeight: 78,
+    borderRadius: childTheme.radiusMd,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    backgroundColor: childTheme.primary,
+  },
+  answerButtonCompact: {
+    minHeight: 64,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   answerButtonRow: {
     flex: 1,
@@ -846,32 +924,49 @@ const styles = StyleSheet.create({
   answerButtonGrid: {
     width: '48%',
   },
+  answerPressed: {
+    opacity: 0.84,
+    transform: [{ translateY: 1.5 }, { scale: 0.985 }],
+  },
   answerText: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    lineHeight: 26,
-    fontWeight: '700',
+    color: childTheme.onPrimary,
     textAlign: 'center',
+  },
+  answerTextCompact: {
+    fontSize: 17,
+    lineHeight: 20,
   },
   personCard: {
     flex: 1,
-    borderRadius: 18,
+    borderRadius: childTheme.radiusMd,
     paddingHorizontal: 14,
     paddingVertical: 18,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    minHeight: 132,
+    minHeight: 116,
+    backgroundColor: childTheme.primary,
+  },
+  personCardCompact: {
+    minHeight: 96,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    gap: 6,
   },
   personCardEmoji: {
-    fontSize: 54,
-    lineHeight: 60,
+    fontSize: 44,
+    lineHeight: 50,
+  },
+  personCardEmojiCompact: {
+    fontSize: 36,
+    lineHeight: 40,
   },
   personCardLabel: {
-    color: '#FFFFFF',
-    fontSize: 22,
-    lineHeight: 28,
-    fontWeight: '700',
+    color: childTheme.onPrimary,
     textAlign: 'center',
+  },
+  personCardLabelCompact: {
+    fontSize: 18,
+    lineHeight: 22,
   },
 });

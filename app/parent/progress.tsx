@@ -1,9 +1,11 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { FlatList, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { PillButton, SurfaceCard } from '@/components/ui/app-primitives';
+import { parentTheme } from '@/constants/semantic-theme';
 import { GAME_META, HOME_GAME_ORDER } from '@/data/constants';
 import { getGameProgress, getObservations, getTargets, getWeeklyStats, saveObservation } from '@/db';
 import type { GameId, GameProgress, ParentObservation, TargetConcept } from '@/types';
@@ -107,8 +109,8 @@ export default function ProgressScreen() {
         contentContainerStyle={styles.content}
         ListHeaderComponent={
           <>
-            <View style={styles.section}>
-              <ThemedText type="subtitle" style={styles.sectionTitle}>
+            <SurfaceCard variant="parent" style={styles.section}>
+              <ThemedText role="parentTitle" style={styles.sectionTitle}>
                 Game progress
               </ThemedText>
               {GAME_ORDER.map((gId) => {
@@ -121,84 +123,77 @@ export default function ProgressScreen() {
 
                 return (
                   <View key={gId} style={styles.gameCard}>
-                    <ThemedText style={styles.gameCardTitle}>
+                    <ThemedText role="parentBody" style={styles.gameCardTitle}>
                       {meta.emoji} {meta.title}
                     </ThemedText>
-                    <ThemedText style={styles.gameCardStat}>Level {currentLevel}</ThemedText>
-                    <ThemedText style={styles.gameCardStat}>
-                      Highest unlocked: {highestUnlocked}
-                    </ThemedText>
-                    <ThemedText style={styles.gameCardStat}>
-                      Last session: {lastAccuracy}%
-                    </ThemedText>
-                    <ThemedText style={styles.gameCardStat}>
-                      Enabled concepts: {enabledCount}
-                    </ThemedText>
+                    <ThemedText role="parentLabel">Level {currentLevel}</ThemedText>
+                    <ThemedText role="parentLabel">Highest unlocked: {highestUnlocked}</ThemedText>
+                    <ThemedText role="parentLabel">Last session: {lastAccuracy}%</ThemedText>
+                    <ThemedText role="parentLabel">Enabled concepts: {enabledCount}</ThemedText>
                   </View>
                 );
               })}
-            </View>
+            </SurfaceCard>
 
-            <View style={styles.section}>
-              <ThemedText type="subtitle" style={styles.sectionTitle}>
+            <SurfaceCard variant="parent" style={styles.section}>
+              <ThemedText role="parentTitle" style={styles.sectionTitle}>
                 This week
               </ThemedText>
-              <ThemedText style={styles.statText}>Practiced: {weeklyStats.totalPrompts} prompts</ThemedText>
-              <ThemedText style={styles.statText}>Touch correct: {weeklyStats.touchCorrect}</ThemedText>
-              <ThemedText style={styles.statText}>Speech matched: {weeklyStats.speechMatched}</ThemedText>
-              <ThemedText style={styles.statText}>Support taps: {weeklyStats.supportUsed}</ThemedText>
-            </View>
+              <ThemedText role="parentBody">Practiced: {weeklyStats.totalPrompts} prompts</ThemedText>
+              <ThemedText role="parentBody">Touch correct: {weeklyStats.touchCorrect}</ThemedText>
+              <ThemedText role="parentBody">Speech matched: {weeklyStats.speechMatched}</ThemedText>
+              <ThemedText role="parentBody">Support taps: {weeklyStats.supportUsed}</ThemedText>
+            </SurfaceCard>
 
-            <View style={styles.section}>
-              <ThemedText type="subtitle" style={styles.sectionTitle}>
+            <SurfaceCard variant="parent" style={styles.section}>
+              <ThemedText role="parentTitle" style={styles.sectionTitle}>
                 Target status
               </ThemedText>
               {formattedTargets.map((target) => (
-                <ThemedText key={target.targetId} style={styles.targetText}>
+                <ThemedText key={target.targetId} role="parentBody">
                   {target.label}: {target.statusLabel}
                 </ThemedText>
               ))}
-            </View>
+            </SurfaceCard>
 
-            <View style={styles.section}>
-              <ThemedText type="subtitle" style={styles.sectionTitle}>
+            <SurfaceCard variant="parent" style={styles.section}>
+              <ThemedText role="parentTitle" style={styles.sectionTitle}>
                 Notes
               </ThemedText>
               <TextInput
                 value={noteText}
                 onChangeText={setNoteText}
                 placeholder="Add an observation..."
+                placeholderTextColor={parentTheme.textSoft}
                 style={styles.input}
                 multiline
               />
-              <Pressable
-                accessibilityRole="button"
+              <PillButton
+                label={isSaving ? 'Saving...' : 'Add'}
                 onPress={() => {
                   void addObservation();
                 }}
-                style={({ pressed }) => [
-                  styles.addButton,
-                  (!noteText.trim() || isSaving) && styles.addButtonDisabled,
-                  pressed && styles.addButtonPressed,
-                ]}
-                disabled={!noteText.trim() || isSaving}>
-                <ThemedText style={styles.addButtonText}>{isSaving ? 'Saving...' : 'Add'}</ThemedText>
-              </Pressable>
-            </View>
+                disabled={!noteText.trim() || isSaving}
+                style={styles.addButton}
+                variant="parent"
+              />
+            </SurfaceCard>
 
-            <ThemedText type="subtitle" style={styles.observationsTitle}>
+            <ThemedText role="parentTitle" style={styles.observationsTitle}>
               Observations
             </ThemedText>
           </>
         }
         ListEmptyComponent={
-          <ThemedText style={styles.emptyText}>No notes yet for this child.</ThemedText>
+          <ThemedText role="parentBody" style={styles.emptyText}>
+            No notes yet for this child.
+          </ThemedText>
         }
         renderItem={({ item }) => (
-          <ThemedView style={styles.observationRow}>
-            <ThemedText style={styles.observationNote}>{item.note_text}</ThemedText>
-            <ThemedText style={styles.observationDate}>{formatObservedAt(item.observed_at)}</ThemedText>
-          </ThemedView>
+          <SurfaceCard variant="parent" style={styles.observationRow}>
+            <ThemedText role="parentBody">{item.note_text}</ThemedText>
+            <ThemedText role="parentLabel">{formatObservedAt(item.observed_at)}</ThemedText>
+          </SurfaceCard>
         )}
       />
     </ThemedView>
@@ -208,103 +203,58 @@ export default function ProgressScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: parentTheme.background,
   },
   content: {
-    paddingHorizontal: 16,
+    paddingHorizontal: parentTheme.pagePadding,
     paddingVertical: 12,
     gap: 12,
     paddingBottom: 28,
   },
   section: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    gap: 4,
+    gap: 6,
   },
   sectionTitle: {
-    marginBottom: 6,
+    marginBottom: 4,
   },
   gameCard: {
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: parentTheme.outline,
     paddingTop: 8,
     paddingBottom: 4,
     gap: 2,
   },
   gameCardTitle: {
-    fontSize: 16,
-    lineHeight: 22,
-    fontWeight: '700',
     marginBottom: 2,
   },
-  gameCardStat: {
-    fontSize: 14,
-    lineHeight: 20,
-    opacity: 0.85,
-  },
-  statText: {
-    fontSize: 18,
-    lineHeight: 24,
-  },
-  targetText: {
-    fontSize: 16,
-    lineHeight: 22,
-  },
   input: {
-    minHeight: 72,
+    minHeight: 88,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
+    borderColor: parentTheme.outline,
+    borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 8,
     fontSize: 16,
     textAlignVertical: 'top',
     marginBottom: 10,
+    color: parentTheme.text,
+    backgroundColor: parentTheme.surfaceMuted,
   },
   addButton: {
     alignSelf: 'flex-start',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#9CA3AF',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  addButtonDisabled: {
-    opacity: 0.5,
-  },
-  addButtonPressed: {
-    opacity: 0.7,
-  },
-  addButtonText: {
-    fontSize: 16,
-    lineHeight: 22,
-    fontWeight: '600',
+    minWidth: 132,
   },
   observationsTitle: {
     marginTop: 2,
   },
   emptyText: {
-    fontSize: 16,
-    lineHeight: 22,
-    opacity: 0.7,
+    color: parentTheme.textMuted,
   },
   observationRow: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
-  },
-  observationNote: {
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  observationDate: {
-    marginTop: 4,
-    fontSize: 14,
-    lineHeight: 18,
-    opacity: 0.75,
+    gap: 6,
   },
 });

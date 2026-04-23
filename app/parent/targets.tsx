@@ -4,6 +4,8 @@ import { ScrollView, StyleSheet, Switch, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { SurfaceCard } from '@/components/ui/app-primitives';
+import { parentTheme } from '@/constants/semantic-theme';
 import { GAME_META, HOME_GAME_ORDER } from '@/data/constants';
 import { getGameProgress, getTargets, updateTargetStatus } from '@/db';
 import type { GameId, GameProgress, TargetConcept } from '@/types';
@@ -89,11 +91,11 @@ export default function TargetsScreen() {
           }
 
           return (
-            <View key={gameId} style={styles.section}>
-              <ThemedText type="subtitle" style={styles.sectionTitle}>
+            <SurfaceCard key={gameId} variant="parent" style={styles.section}>
+              <ThemedText role="parentTitle" style={styles.sectionTitle}>
                 {gameMeta.title}
               </ThemedText>
-              <ThemedText style={styles.levelSubtitle}>
+              <ThemedText role="parentLabel" style={styles.levelSubtitle}>
                 Current level: {gameProgressMap[gameId]?.current_level ?? 1}
               </ThemedText>
 
@@ -103,9 +105,9 @@ export default function TargetsScreen() {
 
                 return (
                   <View key={target.target_id} style={styles.targetRow}>
-                    <View>
-                      <ThemedText style={styles.targetLabel}>{target.label}</ThemedText>
-                      <ThemedText style={styles.targetStatus}>
+                    <View style={styles.targetCopy}>
+                      <ThemedText role="parentBody">{target.label}</ThemedText>
+                      <ThemedText role="parentLabel">
                         {isEnabled ? 'Enabled' : 'Later'}
                       </ThemedText>
                     </View>
@@ -120,7 +122,7 @@ export default function TargetsScreen() {
                   </View>
                 );
               })}
-            </View>
+            </SurfaceCard>
           );
         })}
       </ScrollView>
@@ -131,43 +133,35 @@ export default function TargetsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: parentTheme.background,
   },
   content: {
-    paddingHorizontal: 16,
+    paddingHorizontal: parentTheme.pagePadding,
     paddingVertical: 12,
     gap: 16,
+    paddingBottom: 28,
   },
   section: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   sectionTitle: {
+    marginBottom: 8,
+  },
+  levelSubtitle: {
     marginBottom: 8,
   },
   targetRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    gap: 12,
+    paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: parentTheme.outline,
   },
-  targetLabel: {
-    fontSize: 18,
-    lineHeight: 22,
-  },
-  targetStatus: {
-    fontSize: 14,
-    lineHeight: 18,
-    opacity: 0.7,
-  },
-  levelSubtitle: {
-    fontSize: 14,
-    lineHeight: 18,
-    opacity: 0.7,
-    marginBottom: 8,
+  targetCopy: {
+    flex: 1,
+    gap: 2,
   },
 });

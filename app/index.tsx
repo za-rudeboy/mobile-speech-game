@@ -3,12 +3,13 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AudioReplayButton } from '@/components/audio-replay-button';
-import { getWeeklyStats } from '@/db';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { SurfaceCard, PillButton } from '@/components/ui/app-primitives';
+import { childTheme } from '@/constants/semantic-theme';
+import { getWeeklyStats } from '@/db';
 import { FIRST_WAVE_GAME_IDS, GAME_META, HOME_GAME_ORDER } from '@/data/constants';
 import { usePromptAudio } from '@/hooks/use-prompt-audio';
-import { useThemeColor } from '@/hooks/use-theme-color';
 import { useGameStore } from '@/store/game-store';
 import type { GameId } from '@/types';
 
@@ -24,48 +25,38 @@ interface GameCardProps {
 }
 
 function GameCard({ gameId, title, subtitle, emoji, enabled, onStart }: GameCardProps) {
-  const tintColor = useThemeColor({ light: '#4A90D9', dark: '#5FA8F5' }, 'tint');
-  const cardBackground = useThemeColor({ light: '#FFFFFF', dark: '#1F2428' }, 'background');
-  const bodyTextColor = useThemeColor({ light: '#5F6870', dark: '#BDC4CB' }, 'text');
-
   return (
-    <View
-      style={[
-        styles.card,
-        { backgroundColor: cardBackground },
-        !enabled && styles.cardDisabled,
-      ]}
-      accessibilityLabel={`${title} game card`}
+    <SurfaceCard
+      style={[styles.gameCard, !enabled && styles.gameCardDisabled]}
       testID={`game-card-${gameId}`}>
-      <ThemedText style={styles.emoji}>{emoji}</ThemedText>
-      <ThemedText style={styles.cardTitle}>{title}</ThemedText>
-      <ThemedText style={[styles.cardSubtitle, { color: bodyTextColor }]}>{subtitle}</ThemedText>
+      <View style={styles.gameCardTop}>
+        <View style={styles.gameEmojiBubble}>
+          <ThemedText style={styles.gameEmoji}>{emoji}</ThemedText>
+        </View>
+        <ThemedText role="childTitle" style={styles.gameTitle}>
+          {title}
+        </ThemedText>
+      </View>
+
+      <ThemedText role="childBody" style={styles.gameSubtitle}>
+        {subtitle}
+      </ThemedText>
 
       {enabled ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Start ${title}`}
-          onPress={onStart}
-          style={({ pressed }) => [
-            styles.startButton,
-            { backgroundColor: tintColor },
-            pressed && styles.startButtonPressed,
-          ]}>
-          <ThemedText style={styles.startButtonText}>Start</ThemedText>
-        </Pressable>
+        <PillButton accessibilityLabel={`Start ${title}`} label="Start" onPress={onStart} style={styles.gameButton} />
       ) : (
-        <ThemedText style={styles.comingSoonText}>Coming Soon</ThemedText>
+        <View style={styles.comingSoonPill}>
+          <ThemedText role="childLabel" style={styles.comingSoonText}>
+            Coming soon
+          </ThemedText>
+        </View>
       )}
-    </View>
+    </SurfaceCard>
   );
 }
 
 export default function HomeScreen() {
   const router = useRouter();
-  const screenBackground = useThemeColor({ light: '#F5F7FA', dark: '#151718' }, 'background');
-  const mutedText = useThemeColor({ light: '#9BA1A6', dark: '#9BA1A6' }, 'text');
-  const practiceCounterText = useThemeColor({ light: '#5F6870', dark: '#BDC4CB' }, 'text');
-
   const speechEnabled = useGameStore((state) => state.speechEnabled);
   const todayPromptCount = useGameStore((state) => state.todayPromptCount);
   const [dbPromptCount, setDbPromptCount] = useState(0);
@@ -92,30 +83,43 @@ export default function HomeScreen() {
   const displayCount = Math.max(todayPromptCount, dbPromptCount);
 
   return (
-    <ThemedView style={[styles.screen, { backgroundColor: screenBackground }]}>
-      <View style={styles.headerRow}>
-        <ThemedText style={styles.appTitle}>Caelum</ThemedText>
+    <ThemedView style={styles.screen}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <View style={styles.headerCopy}>
+            <ThemedText role="childDisplay">Caelum</ThemedText>
+            <ThemedText role="childBody" style={styles.headerBody}>
+              Short, calm language games for one clear practice moment at a time.
+            </ThemedText>
+          </View>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Enter parent mode"
-          delayLongPress={3000}
-          onLongPress={() => {
-            void greetingAudio.stop();
-            router.push('./parent');
-          }}
-          style={({ pressed }) => [styles.parentButton, pressed && styles.parentButtonPressed]}>
-          <ThemedText style={[styles.parentButtonText, { color: mutedText }]}>Parent</ThemedText>
-        </Pressable>
-      </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Enter parent mode"
+            delayLongPress={3000}
+            onLongPress={() => {
+              void greetingAudio.stop();
+              router.push('./parent');
+            }}
+            style={({ pressed }) => [styles.parentEntry, pressed && styles.parentEntryPressed]}>
+            <ThemedText role="childLabel" style={styles.parentEntryText}>
+              Parent
+            </ThemedText>
+          </Pressable>
+        </View>
 
-      <ThemedText style={[styles.practiceCounter, { color: practiceCounterText }]}>
-        Practiced today: {displayCount} prompts
-      </ThemedText>
-      <ThemedText style={[styles.helperText, { color: practiceCounterText }]}>
-        Start with short, practical language practice.
-      </ThemedText>
-      <View style={styles.audioButtonWrap}>
+        <SurfaceCard style={styles.summaryCard}>
+          <ThemedText role="childLabel">Today</ThemedText>
+          <ThemedText role="childTitle" style={styles.practiceCount}>
+            {displayCount} prompts
+          </ThemedText>
+          <ThemedText role="childBody" style={styles.summaryBody}>
+            Start with a quick round, then take a break while it still feels easy.
+          </ThemedText>
+        </SurfaceCard>
+
         <AudioReplayButton
           accessibilityLabel="Replay home greeting audio"
           disabled={!greetingAudio.isAvailable}
@@ -126,30 +130,27 @@ export default function HomeScreen() {
             void greetingAudio.play();
           }}
         />
-      </View>
 
-      <ScrollView
-        style={styles.cardList}
-        contentContainerStyle={styles.cardListContent}
-        showsVerticalScrollIndicator={false}>
-        {cards.map((card) => {
-          const meta = GAME_META[card.gameId];
+        <View style={styles.gameList}>
+          {cards.map((card) => {
+            const meta = GAME_META[card.gameId];
 
-          return (
-            <GameCard
-              key={card.gameId}
-              gameId={card.gameId}
-              title={meta.title}
-              subtitle={meta.subtitle}
-              emoji={meta.emoji}
-              enabled={card.enabled}
-              onStart={() => {
-                void greetingAudio.stop();
-                router.push(`./game/${card.gameId}/intro`);
-              }}
-            />
-          );
-        })}
+            return (
+              <GameCard
+                key={card.gameId}
+                gameId={card.gameId}
+                title={meta.title}
+                subtitle={meta.subtitle}
+                emoji={meta.emoji}
+                enabled={card.enabled}
+                onStart={() => {
+                  void greetingAudio.stop();
+                  router.push(`./game/${card.gameId}/intro`);
+                }}
+              />
+            );
+          })}
+        </View>
       </ScrollView>
     </ThemedView>
   );
@@ -158,105 +159,96 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    backgroundColor: childTheme.background,
+  },
+  content: {
     paddingTop: 56,
-    paddingHorizontal: 20,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  appTitle: {
-    fontSize: 32,
-    lineHeight: 36,
-    fontWeight: '700',
-  },
-  parentButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  parentButtonPressed: {
-    opacity: 0.6,
-  },
-  parentButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  practiceCounter: {
-    marginTop: 10,
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  helperText: {
-    marginTop: 4,
-    fontSize: 15,
-    lineHeight: 20,
-  },
-  audioButtonWrap: {
-    marginTop: 16,
-  },
-  cardList: {
-    flex: 1,
-    marginTop: 18,
-  },
-  cardListContent: {
-    paddingBottom: 28,
+    paddingHorizontal: childTheme.pagePadding,
+    paddingBottom: 40,
     gap: 18,
   },
-  card: {
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+  header: {
+    gap: 16,
+  },
+  headerCopy: {
+    gap: 10,
+  },
+  headerBody: {
+    maxWidth: 560,
+    color: childTheme.textMuted,
+  },
+  parentEntry: {
+    alignSelf: 'flex-start',
+    minHeight: 44,
+    paddingHorizontal: 14,
+    justifyContent: 'center',
+    borderRadius: childTheme.radiusPill,
+    backgroundColor: childTheme.surface,
     borderWidth: 1,
-    borderColor: '#E4E8EE',
+    borderColor: childTheme.outline,
   },
-  cardDisabled: {
-    opacity: 0.58,
+  parentEntryPressed: {
+    opacity: 0.7,
   },
-  emoji: {
-    fontSize: 40,
-    lineHeight: 46,
-    marginBottom: 12,
+  parentEntryText: {
+    color: childTheme.textSoft,
   },
-  cardTitle: {
-    fontSize: 22,
-    lineHeight: 28,
-    fontWeight: '700',
-    marginBottom: 6,
+  summaryCard: {
+    paddingHorizontal: 22,
+    paddingVertical: 22,
+    gap: 6,
   },
-  cardSubtitle: {
-    fontSize: 15,
-    lineHeight: 21,
-    marginBottom: 18,
+  practiceCount: {
+    color: childTheme.primary,
   },
-  startButton: {
-    alignSelf: 'center',
-    minWidth: 136,
-    paddingHorizontal: 18,
-    paddingVertical: 11,
-    borderRadius: 14,
+  summaryBody: {
+    color: childTheme.textMuted,
+  },
+  gameList: {
+    gap: 18,
+  },
+  gameCard: {
+    paddingHorizontal: 22,
+    paddingVertical: 22,
+    gap: 18,
+  },
+  gameCardDisabled: {
+    opacity: 0.62,
+  },
+  gameCardTop: {
+    gap: 14,
+  },
+  gameEmojiBubble: {
+    width: 76,
+    height: 76,
+    borderRadius: 26,
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: childTheme.surfaceRaised,
   },
-  startButtonPressed: {
-    opacity: 0.85,
+  gameEmoji: {
+    fontSize: 38,
+    lineHeight: 44,
   },
-  startButtonText: {
-    fontSize: 18,
-    lineHeight: 22,
-    fontWeight: '700',
-    color: '#FFFFFF',
+  gameTitle: {
+    fontSize: 30,
+    lineHeight: 36,
+  },
+  gameSubtitle: {
+    color: childTheme.textMuted,
+  },
+  gameButton: {
+    alignSelf: 'flex-start',
+    minWidth: 164,
+  },
+  comingSoonPill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: childTheme.radiusPill,
+    backgroundColor: childTheme.surfaceRaised,
   },
   comingSoonText: {
-    alignSelf: 'center',
-    fontSize: 18,
-    lineHeight: 22,
-    fontStyle: 'italic',
-    color: '#8A9199',
+    color: childTheme.textSoft,
   },
 });

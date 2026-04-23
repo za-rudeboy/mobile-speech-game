@@ -1,16 +1,14 @@
 import { type Href, useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Switch, View } from 'react-native';
+import { StyleSheet, Switch, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { useThemeColor } from '@/hooks/use-theme-color';
+import { PillButton, SurfaceCard } from '@/components/ui/app-primitives';
+import { parentTheme } from '@/constants/semantic-theme';
 import { useGameStore } from '@/store/game-store';
 
 export default function ParentScreen() {
   const router = useRouter();
-  const buttonBackground = useThemeColor({ light: '#F3F4F6', dark: '#1F2328' }, 'background');
-  const buttonBorder = useThemeColor({ light: '#D1D5DB', dark: '#2F363D' }, 'text');
-  const secondaryText = useThemeColor({ light: '#5F6870', dark: '#BDC4CB' }, 'text');
   const speechEnabled = useGameStore((state) => state.speechEnabled);
   const setSpeechEnabled = useGameStore((state) => state.setSpeechEnabled);
 
@@ -22,14 +20,19 @@ export default function ParentScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>
+      <ThemedText role="parentTitle" style={styles.title}>
         Parent Mode
       </ThemedText>
+      <ThemedText role="parentBody" style={styles.subtitle}>
+        Review settings, concepts, and recent notes with a cleaner admin-style layout.
+      </ThemedText>
 
-      <View style={[styles.settingCard, { backgroundColor: buttonBackground, borderColor: buttonBorder }]}>
+      <SurfaceCard variant="parent" style={styles.settingCard}>
         <View style={styles.settingCopy}>
-          <ThemedText style={styles.settingTitle}>Speech audio</ThemedText>
-          <ThemedText style={[styles.settingDescription, { color: secondaryText }]}>
+          <ThemedText role="parentBody" style={styles.settingTitle}>
+            Speech audio
+          </ThemedText>
+          <ThemedText role="parentLabel" style={styles.settingDescription}>
             Turn spoken prompts and feedback on or off across the app.
           </ThemedText>
         </View>
@@ -40,23 +43,20 @@ export default function ParentScreen() {
           }}
           accessibilityLabel="Toggle speech audio"
         />
-      </View>
+      </SurfaceCard>
 
       <View style={styles.menuList}>
         {menuItems.map((item) => (
-          <Pressable
+          <PillButton
             key={item.label}
-            accessibilityRole="button"
+            label={item.label}
             onPress={() => {
               router.push(item.route);
             }}
-            style={({ pressed }) => [
-              styles.menuButton,
-              { backgroundColor: buttonBackground, borderColor: buttonBorder },
-              pressed && styles.menuButtonPressed,
-            ]}>
-            <ThemedText style={styles.menuButtonLabel}>{item.label}</ThemedText>
-          </Pressable>
+            tone="secondary"
+            variant="parent"
+            style={styles.menuButton}
+          />
         ))}
       </View>
     </ThemedView>
@@ -66,16 +66,19 @@ export default function ParentScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: parentTheme.pagePadding,
     paddingTop: 20,
+    backgroundColor: parentTheme.background,
   },
   title: {
+    marginBottom: 8,
+  },
+  subtitle: {
     marginBottom: 20,
+    color: parentTheme.textMuted,
   },
   settingCard: {
-    minHeight: 84,
-    borderRadius: 12,
-    borderWidth: 1,
+    minHeight: 96,
     paddingHorizontal: 16,
     paddingVertical: 14,
     marginBottom: 18,
@@ -89,30 +92,15 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   settingTitle: {
-    fontSize: 18,
-    lineHeight: 24,
-    fontWeight: '600',
+    color: parentTheme.text,
   },
   settingDescription: {
-    fontSize: 14,
-    lineHeight: 20,
+    color: parentTheme.textMuted,
   },
   menuList: {
     gap: 12,
   },
   menuButton: {
-    minHeight: 64,
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  menuButtonPressed: {
-    opacity: 0.7,
-  },
-  menuButtonLabel: {
-    fontSize: 20,
-    lineHeight: 26,
-    fontWeight: '600',
+    alignItems: 'flex-start',
   },
 });

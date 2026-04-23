@@ -1,36 +1,21 @@
 import { Stack } from 'expo-router';
 
+import { parentTheme } from '@/constants/semantic-theme';
+
+const headerOptions = {
+  headerShown: true,
+  headerStyle: { backgroundColor: parentTheme.surface },
+  headerTintColor: parentTheme.text,
+  headerTitleStyle: { fontWeight: '600' as const },
+};
+
 export default function ParentLayout() {
   return (
     <Stack>
-      <Stack.Screen
-        name="index"
-        options={{
-          title: 'Parent Mode',
-          headerShown: true,
-        }}
-      />
-      <Stack.Screen
-        name="targets"
-        options={{
-          title: 'Targets',
-          headerShown: true,
-        }}
-      />
-      <Stack.Screen
-        name="corrections"
-        options={{
-          title: 'Corrections',
-          headerShown: true,
-        }}
-      />
-      <Stack.Screen
-        name="progress"
-        options={{
-          title: 'Progress',
-          headerShown: true,
-        }}
-      />
+      <Stack.Screen name="index" options={{ ...headerOptions, title: 'Parent Mode' }} />
+      <Stack.Screen name="targets" options={{ ...headerOptions, title: 'Targets' }} />
+      <Stack.Screen name="corrections" options={{ ...headerOptions, title: 'Corrections' }} />
+      <Stack.Screen name="progress" options={{ ...headerOptions, title: 'Progress' }} />
     </Stack>
   );
 }

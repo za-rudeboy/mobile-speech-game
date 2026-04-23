@@ -4,6 +4,8 @@ import { FlatList, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { SurfaceCard } from '@/components/ui/app-primitives';
+import { parentTheme } from '@/constants/semantic-theme';
 import { getCorrectedAttempts } from '@/db';
 import type { PromptAttempt } from '@/types';
 
@@ -56,9 +58,11 @@ export default function CorrectionsScreen() {
     <ThemedView style={styles.container}>
       {groupedCorrections.length === 0 ? (
         <ThemedView style={styles.emptyState}>
-          <ThemedText style={styles.emptyTitle}>No corrections yet</ThemedText>
-          <ThemedText style={styles.emptySubtitle}>
-            Speech corrections will appear here once voice input is enabled
+          <ThemedText role="parentTitle" style={styles.emptyTitle}>
+            No corrections yet
+          </ThemedText>
+          <ThemedText role="parentBody" style={styles.emptySubtitle}>
+            Speech corrections will appear here once voice input is enabled.
           </ThemedText>
         </ThemedView>
       ) : (
@@ -67,11 +71,11 @@ export default function CorrectionsScreen() {
           keyExtractor={(item) => item.key}
           contentContainerStyle={styles.listContent}
           renderItem={({ item }) => (
-            <ThemedView style={styles.row}>
-              <ThemedText style={styles.rowText}>
+            <SurfaceCard variant="parent" style={styles.row}>
+              <ThemedText role="parentBody">
                 {`"${item.rawSpeechText}" -> ${item.finalAnswer} (${item.count} ${item.count === 1 ? 'time' : 'times'})`}
               </ThemedText>
-            </ThemedView>
+            </SurfaceCard>
           )}
         />
       )}
@@ -82,8 +86,9 @@ export default function CorrectionsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: parentTheme.pagePadding,
     paddingVertical: 12,
+    backgroundColor: parentTheme.background,
   },
   emptyState: {
     flex: 1,
@@ -92,30 +97,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   emptyTitle: {
-    fontSize: 22,
-    lineHeight: 28,
-    fontWeight: '600',
     marginBottom: 8,
   },
   emptySubtitle: {
-    fontSize: 16,
-    lineHeight: 22,
     textAlign: 'center',
-    opacity: 0.75,
+    color: parentTheme.textMuted,
   },
   listContent: {
     gap: 10,
     paddingBottom: 24,
   },
   row: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
-  },
-  rowText: {
-    fontSize: 18,
-    lineHeight: 24,
   },
 });

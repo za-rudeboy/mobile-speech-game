@@ -16,6 +16,7 @@ import { resolveCopyTokens } from '@/data/content/mvp-v1';
 import { DEFAULT_CHILD_NAME, DEFAULT_PARENT_LABEL } from '@/data/constants';
 import {
   ResolvedWhereIsItScene,
+  resolveWhereIsItCopy,
   resolvePromptSceneTokens,
   resolveWhereIsItScene,
 } from '@/data/content/where-is-it-scenes';
@@ -210,26 +211,41 @@ export default function GamePlayScreen() {
 
     return resolveWhereIsItScene(currentPrompt, activeSessionId, currentPromptIndex);
   }, [activeSessionId, currentPrompt, currentPromptIndex]);
+  const resolvedWhereCopy = useMemo(() => {
+    if (currentPrompt?.game_id !== 'where_is_it') {
+      return null;
+    }
+
+    return resolveWhereIsItCopy(resolvedWhereScene);
+  }, [currentPrompt?.game_id, resolvedWhereScene]);
   const resolvedSpokenText = useMemo(() => {
     if (!currentPrompt) {
       return '';
+    }
+
+    if (resolvedWhereCopy) {
+      return resolvedWhereCopy.spokenText;
     }
 
     return resolvePromptSceneTokens(currentPrompt.spoken_text, resolvedWhereScene, {
       childName: DEFAULT_CHILD_NAME,
       parentLabel: DEFAULT_PARENT_LABEL,
     });
-  }, [currentPrompt, resolvedWhereScene]);
+  }, [currentPrompt, resolvedWhereCopy, resolvedWhereScene]);
   const resolvedSupportText = useMemo(() => {
     if (!currentPrompt) {
       return '';
+    }
+
+    if (resolvedWhereCopy) {
+      return resolvedWhereCopy.supportText;
     }
 
     return resolvePromptSceneTokens(buildSupportText(currentPrompt), resolvedWhereScene, {
       childName: DEFAULT_CHILD_NAME,
       parentLabel: DEFAULT_PARENT_LABEL,
     });
-  }, [currentPrompt, resolvedWhereScene]);
+  }, [currentPrompt, resolvedWhereCopy, resolvedWhereScene]);
   const resolvedDoWhatISayScene = useMemo(() => {
     if (!currentPrompt) {
       return null;

@@ -1,7 +1,7 @@
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Speech from 'expo-speech';
-import { useEffect, useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useRef } from 'react';
+import { InteractionManager, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -9,6 +9,7 @@ import { PillButton, SurfaceCard } from '@/components/ui/app-primitives';
 import { childTheme } from '@/constants/semantic-theme';
 import {
   resolvePromptSceneTokens,
+  resolveWhereIsItCopy,
   resolveWhereIsItScene,
 } from '@/data/content/where-is-it-scenes';
 import { DEFAULT_CHILD_NAME, DEFAULT_PARENT_LABEL } from '@/data/constants';
@@ -29,6 +30,7 @@ export default function GameFeedbackScreen() {
   const speechEnabled = useGameStore((state) => state.speechEnabled);
   const resolvedGameId = Array.isArray(gameId) ? gameId[0] : gameId;
   const currentPrompt = prompts[currentPromptIndex];
+  const spokenFeedbackKeyRef = useRef<string | null>(null);
   const resolvedWhereScene = useMemo(() => {
     if (!currentPrompt) {
       return null;
@@ -36,6 +38,13 @@ export default function GameFeedbackScreen() {
 
     return resolveWhereIsItScene(currentPrompt, activeSessionId, currentPromptIndex);
   }, [activeSessionId, currentPrompt, currentPromptIndex]);
+  const resolvedWhereCopy = useMemo(() => {
+    if (currentPrompt?.game_id !== 'where_is_it') {
+      return null;
+    }
+
+    return resolveWhereIsItCopy(resolvedWhereScene);
+  }, [currentPrompt?.game_id, resolvedWhereScene]);
 
   useEffect(() => {
     if (!resolvedGameId || !currentGameId || currentGameId !== resolvedGameId || prompts.length === 0) {
@@ -68,25 +77,52 @@ export default function GameFeedbackScreen() {
       | Record<string, string>
       | undefined;
     const rawFeedbackSentence =
+      resolvedWhereCopy?.modelPhrase ??
       currentPrompt.model_phrase ??
       gameFeedback?.[currentPrompt.feedback_key] ??
       currentPrompt.correct_answer;
-    const spokenFeedback = resolvePromptSceneTokens(rawFeedbackSentence, resolvedWhereScene, {
+    const spokenFeedback = resolvedWhereCopy?.modelPhrase ?? resolvePromptSceneTokens(rawFeedbackSentence, resolvedWhereScene, {
       childName: DEFAULT_CHILD_NAME,
       parentLabel: DEFAULT_PARENT_LABEL,
     });
+    const feedbackKey = `${currentPrompt.prompt_id}:${lastAnswerCorrect}:${spokenFeedback}`;
 
     if (!speechEnabled) {
       Speech.stop();
       return;
     }
 
-    Speech.stop();
-    Speech.speak(spokenFeedback, {
-      rate: 0.85,
-      pitch: 1,
+    if (spokenFeedbackKeyRef.current === feedbackKey) {
+      return;
+    }
+
+    spokenFeedbackKeyRef.current = feedbackKey;
+
+    let didCancel = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const interactionHandle = InteractionManager.runAfterInteractions(() => {
+      timeoutId = setTimeout(() => {
+        if (didCancel) {
+          return;
+        }
+
+        Speech.stop();
+        Speech.speak(spokenFeedback, {
+          rate: 0.85,
+          pitch: 1,
+        });
+      }, 120);
     });
-  }, [currentPrompt, gamePhase, lastAnswerCorrect, resolvedWhereScene, speechEnabled]);
+
+    return () => {
+      didCancel = true;
+      interactionHandle.cancel();
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      Speech.stop();
+    };
+  }, [currentPrompt, gamePhase, lastAnswerCorrect, resolvedWhereCopy, resolvedWhereScene, speechEnabled]);
 
   if (!currentPrompt || gamePhase !== 'feedback' || lastAnswerCorrect === null) {
     return <ThemedView style={styles.screen} />;
@@ -96,10 +132,11 @@ export default function GameFeedbackScreen() {
     | Record<string, string>
     | undefined;
   const rawFeedbackSentence =
+    resolvedWhereCopy?.modelPhrase ??
     currentPrompt.model_phrase ??
     gameFeedback?.[currentPrompt.feedback_key] ??
     currentPrompt.correct_answer;
-  const feedbackSentence = resolvePromptSceneTokens(rawFeedbackSentence, resolvedWhereScene, {
+  const feedbackSentence = resolvedWhereCopy?.modelPhrase ?? resolvePromptSceneTokens(rawFeedbackSentence, resolvedWhereScene, {
     childName: DEFAULT_CHILD_NAME,
     parentLabel: DEFAULT_PARENT_LABEL,
   });

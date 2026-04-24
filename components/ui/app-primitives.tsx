@@ -5,6 +5,7 @@ import {
   type PressableProps,
   type StyleProp,
   type TextStyle,
+  type ViewProps,
   type ViewStyle,
 } from 'react-native';
 
@@ -13,7 +14,7 @@ import { childShadow, childTheme, parentShadow, parentTheme } from '@/constants/
 
 type AppVariant = 'child' | 'parent';
 
-interface SurfaceCardProps {
+interface SurfaceCardProps extends ViewProps {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   variant?: AppVariant;
@@ -34,11 +35,12 @@ interface ProgressBarProps {
   total: number;
 }
 
-export function SurfaceCard({ children, style, variant = 'child' }: SurfaceCardProps) {
+export function SurfaceCard({ children, style, variant = 'child', ...viewProps }: SurfaceCardProps) {
   const isChild = variant === 'child';
 
   return (
     <View
+      {...viewProps}
       style={[
         styles.card,
         isChild ? styles.childCard : styles.parentCard,
@@ -63,10 +65,11 @@ export function PillButton({
 }: PillButtonProps) {
   const isChild = variant === 'child';
   const isPrimary = tone === 'primary';
+  const isDisabled = disabled ?? false;
 
   return (
     <Pressable
-      accessibilityState={{ ...accessibilityState, disabled }}
+      accessibilityState={{ ...accessibilityState, disabled: isDisabled }}
       disabled={disabled}
       style={({ pressed }) => [
         styles.button,
@@ -78,8 +81,8 @@ export function PillButton({
           : isPrimary
             ? styles.parentPrimaryButton
             : styles.parentSecondaryButton,
-        disabled && styles.buttonDisabled,
-        pressed && !disabled && styles.buttonPressed,
+        isDisabled && styles.buttonDisabled,
+        pressed && !isDisabled && styles.buttonPressed,
         style,
       ]}
       {...pressableProps}>

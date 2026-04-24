@@ -3,25 +3,27 @@ import { StyleSheet, Text, type TextProps } from 'react-native';
 import { AppFonts, childTheme, parentTheme } from '@/constants/semantic-theme';
 import { useThemeColor } from '@/hooks/use-theme-color';
 
-export type ThemedTextProps = TextProps & {
+type TextRole =
+  | 'default'
+  | 'title'
+  | 'defaultSemiBold'
+  | 'subtitle'
+  | 'link'
+  | 'childDisplay'
+  | 'childTitle'
+  | 'childBody'
+  | 'childLabel'
+  | 'childButton'
+  | 'parentTitle'
+  | 'parentBody'
+  | 'parentLabel'
+  | 'parentButton';
+
+export type ThemedTextProps = Omit<TextProps, 'role'> & {
   lightColor?: string;
   darkColor?: string;
-  role?:
-    | 'default'
-    | 'title'
-    | 'defaultSemiBold'
-    | 'subtitle'
-    | 'link'
-    | 'childDisplay'
-    | 'childTitle'
-    | 'childBody'
-    | 'childLabel'
-    | 'childButton'
-    | 'parentTitle'
-    | 'parentBody'
-    | 'parentLabel'
-    | 'parentButton';
-  type?: 'default' | 'title' | 'defaultSemiBold' | 'subtitle' | 'link';
+  role?: TextRole;
+  type?: TextRole;
 };
 
 export function ThemedText({

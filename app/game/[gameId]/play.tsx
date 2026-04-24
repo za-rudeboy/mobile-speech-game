@@ -330,7 +330,6 @@ export default function GamePlayScreen() {
       clearTimeout(feedbackDelayRef.current);
       feedbackDelayRef.current = null;
     }
-    Speech.stop();
     resetPromptSupport();
   }, [currentPrompt?.prompt_id, gamePhase, resetPromptSupport, currentPrompt]);
 

@@ -6,7 +6,7 @@ import { Platform } from 'react-native';
 
 const PLAYER_OPTIONS = {
   downloadFirst: true,
-  updateInterval: 150,
+  updateInterval: 500,
 } as const;
 
 export interface PromptAudioConfig {
@@ -149,6 +149,11 @@ export function usePromptAudio({
   useEffect(() => {
     latestStatusRef.current = status;
   }, [status]);
+
+  useEffect(() => {
+    autoPlayArmedRef.current = true;
+    setFallbackSpeaking(false);
+  }, [audioSource, setFallbackSpeaking, trimmedFallbackText]);
 
   useEffect(() => {
     if (!enabled || !isFocused) {

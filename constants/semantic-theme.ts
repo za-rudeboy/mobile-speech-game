@@ -69,14 +69,11 @@ export const parentTheme = {
 export const childShadow = {
   ...(Platform.OS === 'web'
     ? {
-        boxShadow: `0px 10px 24px ${childTheme.shadow}`,
+        boxShadow: `0px 6px 14px ${childTheme.shadow}`,
       }
     : {
-        shadowColor: childTheme.shadow,
-        shadowOpacity: 1,
-        shadowRadius: 24,
-        shadowOffset: { width: 0, height: 10 },
-        elevation: 6,
+        shadowOpacity: 0,
+        elevation: 0,
       }),
 } as const;
 

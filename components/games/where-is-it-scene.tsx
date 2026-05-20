@@ -2,25 +2,44 @@ import { Image } from 'expo-image';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { childTheme } from '@/constants/semantic-theme';
 import { ResolvedWhereIsItScene } from '@/data/content/where-is-it-scenes';
 
-export function WhereIsItScene({ scene }: { scene: ResolvedWhereIsItScene | null }) {
+export function WhereIsItScene({
+  compact = false,
+  scene,
+}: {
+  compact?: boolean;
+  scene: ResolvedWhereIsItScene | null;
+}) {
   if (!scene) {
     return (
-      <View style={styles.whereSceneCanvas}>
-        <View style={styles.whereSceneStage}>
-          <ThemedText style={styles.wherePlaceholderText}>Image unavailable</ThemedText>
+      <View style={[styles.whereSceneCanvas, compact && styles.whereSceneCanvasCompact]}>
+        <View style={[styles.whereSceneStage, compact && styles.whereSceneStageCompact]}>
+          <ThemedText role="childBody" style={styles.wherePlaceholderText}>
+            Image unavailable
+          </ThemedText>
         </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.whereSceneCanvas}>
-      <View style={[styles.whereSceneStage, styles.whereImageStage]}>
+    <View style={[styles.whereSceneCanvas, compact && styles.whereSceneCanvasCompact]}>
+      <View
+        style={[
+          styles.whereSceneStage,
+          styles.whereImageStage,
+          compact && styles.whereSceneStageCompact,
+          compact && styles.whereImageStageCompact,
+        ]}>
         <Image
           source={scene.imageSource}
-          style={[styles.whereSceneImage, { aspectRatio: scene.aspectRatio }]}
+          style={[
+            styles.whereSceneImage,
+            compact && styles.whereSceneImageCompact,
+            { aspectRatio: scene.aspectRatio },
+          ]}
           contentFit="contain"
           accessibilityLabel={`${scene.subject.label} ${scene.relation} ${scene.anchor.label}`}
         />
@@ -31,36 +50,50 @@ export function WhereIsItScene({ scene }: { scene: ResolvedWhereIsItScene | null
 
 const styles = StyleSheet.create({
   whereSceneCanvas: {
-    minHeight: 180,
+    minHeight: 176,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
+  },
+  whereSceneCanvasCompact: {
+    minHeight: 142,
+    marginBottom: 8,
   },
   whereSceneStage: {
     width: '100%',
-    minHeight: 168,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.68)',
+    minHeight: 164,
+    borderRadius: childTheme.radiusMd,
+    backgroundColor: childTheme.surfaceRaised,
     borderWidth: 1,
-    borderColor: 'rgba(74, 144, 217, 0.12)',
+    borderColor: childTheme.outline,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    paddingHorizontal: 20,
-    paddingVertical: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  whereSceneStageCompact: {
+    minHeight: 132,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
   },
   whereImageStage: {
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  whereImageStageCompact: {
+    paddingHorizontal: 8,
+    paddingVertical: 8,
   },
   whereSceneImage: {
     width: '100%',
-    maxHeight: 220,
+    maxHeight: 188,
+  },
+  whereSceneImageCompact: {
+    maxHeight: 146,
   },
   wherePlaceholderText: {
-    fontSize: 18,
-    lineHeight: 24,
     textAlign: 'center',
-    fontWeight: '600',
+    color: childTheme.textMuted,
   },
 });

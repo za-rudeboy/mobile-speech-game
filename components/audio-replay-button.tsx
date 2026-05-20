@@ -1,10 +1,11 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { useThemeColor } from '@/hooks/use-theme-color';
+import { childShadow, childTheme } from '@/constants/semantic-theme';
 
 interface AudioReplayButtonProps {
   accessibilityLabel: string;
+  compact?: boolean;
   disabled?: boolean;
   isLoading?: boolean;
   isPlaying?: boolean;
@@ -14,16 +15,13 @@ interface AudioReplayButtonProps {
 
 export function AudioReplayButton({
   accessibilityLabel,
+  compact = false,
   disabled = false,
   isLoading = false,
   isPlaying = false,
   label,
   onPress,
 }: AudioReplayButtonProps) {
-  const tintColor = useThemeColor({ light: '#4A90D9', dark: '#5FA8F5' }, 'tint');
-  const borderColor = useThemeColor({ light: '#BFD6EC', dark: '#33506C' }, 'text');
-  const surfaceColor = useThemeColor({ light: '#FFFFFF', dark: '#1F2428' }, 'background');
-  const bodyTextColor = useThemeColor({ light: '#5F6870', dark: '#BDC4CB' }, 'text');
   const inactive = disabled || isLoading;
 
   return (
@@ -35,18 +33,20 @@ export function AudioReplayButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
-        {
-          backgroundColor: surfaceColor,
-          borderColor: inactive ? borderColor : tintColor,
-        },
+        compact && styles.buttonCompact,
+        inactive ? styles.buttonInactive : styles.buttonActive,
         (pressed || inactive) && styles.buttonPressed,
       ]}>
-      <View style={[styles.iconBadge, { backgroundColor: tintColor }]}>
-        <ThemedText style={styles.iconText}>{isPlaying ? '||' : '▶'}</ThemedText>
+      <View style={[styles.iconBadge, compact && styles.iconBadgeCompact]}>
+        <ThemedText style={[styles.iconText, compact && styles.iconTextCompact]}>
+          {isPlaying ? '||' : '▶'}
+        </ThemedText>
       </View>
       <View style={styles.copy}>
-        <ThemedText style={styles.label}>{label}</ThemedText>
-        <ThemedText style={[styles.status, { color: bodyTextColor }]}>
+        <ThemedText role="childLabel" style={[styles.label, compact && styles.labelCompact]}>
+          {label}
+        </ThemedText>
+        <ThemedText role="childBody" style={[styles.status, compact && styles.statusCompact]}>
           {isLoading ? 'Loading audio...' : isPlaying ? 'Playing now' : 'Tap to replay'}
         </ThemedText>
       </View>
@@ -56,42 +56,69 @@ export function AudioReplayButton({
 
 const styles = StyleSheet.create({
   button: {
-    minHeight: 72,
-    borderRadius: 18,
+    minHeight: childTheme.tapTarget,
+    borderRadius: childTheme.radiusMd,
     borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 14,
+    backgroundColor: childTheme.surface,
+    ...childShadow,
+  },
+  buttonCompact: {
+    minHeight: 56,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     gap: 12,
   },
+  buttonActive: {
+    borderColor: childTheme.primary,
+  },
+  buttonInactive: {
+    borderColor: childTheme.outline,
+  },
   buttonPressed: {
-    opacity: 0.75,
+    opacity: 0.82,
   },
   iconBadge: {
-    width: 42,
-    height: 42,
-    borderRadius: 999,
+    width: 44,
+    height: 44,
+    borderRadius: childTheme.radiusPill,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: childTheme.primary,
+  },
+  iconBadgeCompact: {
+    width: 38,
+    height: 38,
   },
   iconText: {
-    color: '#FFFFFF',
+    color: childTheme.onPrimary,
     fontSize: 18,
     lineHeight: 20,
-    fontWeight: '700',
+  },
+  iconTextCompact: {
+    fontSize: 16,
+    lineHeight: 18,
   },
   copy: {
     flex: 1,
     gap: 2,
   },
   label: {
-    fontSize: 18,
-    lineHeight: 22,
-    fontWeight: '700',
+    color: childTheme.textMuted,
+  },
+  labelCompact: {
+    fontSize: 16,
+    lineHeight: 20,
   },
   status: {
-    fontSize: 14,
-    lineHeight: 18,
+    color: childTheme.text,
+  },
+  statusCompact: {
+    fontSize: 16,
+    lineHeight: 20,
   },
 });

@@ -1,17 +1,19 @@
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Speech from 'expo-speech';
-import { useEffect, useMemo } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { useEffect, useMemo, useRef } from 'react';
+import { InteractionManager, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { PillButton, SurfaceCard } from '@/components/ui/app-primitives';
+import { childTheme } from '@/constants/semantic-theme';
 import {
   resolvePromptSceneTokens,
+  resolveWhereIsItCopy,
   resolveWhereIsItScene,
 } from '@/data/content/where-is-it-scenes';
 import { DEFAULT_CHILD_NAME, DEFAULT_PARENT_LABEL } from '@/data/constants';
 import { MVP_V1_GAME_COPY, MVP_V1_UI_GLOBAL } from '@/data/content/mvp-v1';
-import { useThemeColor } from '@/hooks/use-theme-color';
 import { useGameStore } from '@/store/game-store';
 
 export default function GameFeedbackScreen() {
@@ -27,15 +29,8 @@ export default function GameFeedbackScreen() {
   const endGame = useGameStore((state) => state.endGame);
   const speechEnabled = useGameStore((state) => state.speechEnabled);
   const resolvedGameId = Array.isArray(gameId) ? gameId[0] : gameId;
-  const actionButtonColor = useThemeColor({ light: '#4A90D9', dark: '#5FA8F5' }, 'tint');
-  const defaultBackground = useThemeColor({}, 'background');
-  const feedbackBackground =
-    lastAnswerCorrect === null
-      ? defaultBackground
-      : lastAnswerCorrect
-        ? 'rgba(76, 175, 80, 0.15)'
-        : 'rgba(244, 67, 54, 0.15)';
   const currentPrompt = prompts[currentPromptIndex];
+  const spokenFeedbackKeyRef = useRef<string | null>(null);
   const resolvedWhereScene = useMemo(() => {
     if (!currentPrompt) {
       return null;
@@ -43,6 +38,13 @@ export default function GameFeedbackScreen() {
 
     return resolveWhereIsItScene(currentPrompt, activeSessionId, currentPromptIndex);
   }, [activeSessionId, currentPrompt, currentPromptIndex]);
+  const resolvedWhereCopy = useMemo(() => {
+    if (currentPrompt?.game_id !== 'where_is_it') {
+      return null;
+    }
+
+    return resolveWhereIsItCopy(resolvedWhereScene);
+  }, [currentPrompt?.game_id, resolvedWhereScene]);
 
   useEffect(() => {
     if (!resolvedGameId || !currentGameId || currentGameId !== resolvedGameId || prompts.length === 0) {
@@ -75,42 +77,69 @@ export default function GameFeedbackScreen() {
       | Record<string, string>
       | undefined;
     const rawFeedbackSentence =
+      resolvedWhereCopy?.modelPhrase ??
       currentPrompt.model_phrase ??
       gameFeedback?.[currentPrompt.feedback_key] ??
       currentPrompt.correct_answer;
-    const spokenFeedback = resolvePromptSceneTokens(rawFeedbackSentence, resolvedWhereScene, {
+    const spokenFeedback = resolvedWhereCopy?.modelPhrase ?? resolvePromptSceneTokens(rawFeedbackSentence, resolvedWhereScene, {
       childName: DEFAULT_CHILD_NAME,
       parentLabel: DEFAULT_PARENT_LABEL,
     });
+    const feedbackKey = `${currentPrompt.prompt_id}:${lastAnswerCorrect}:${spokenFeedback}`;
 
     if (!speechEnabled) {
       Speech.stop();
       return;
     }
 
-    Speech.stop();
-    Speech.speak(spokenFeedback, {
-      rate: 0.85,
-      pitch: 1,
+    if (spokenFeedbackKeyRef.current === feedbackKey) {
+      return;
+    }
+
+    spokenFeedbackKeyRef.current = feedbackKey;
+
+    let didCancel = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const interactionHandle = InteractionManager.runAfterInteractions(() => {
+      timeoutId = setTimeout(() => {
+        if (didCancel) {
+          return;
+        }
+
+        Speech.stop();
+        Speech.speak(spokenFeedback, {
+          rate: 0.85,
+          pitch: 1,
+        });
+      }, 120);
     });
-  }, [currentPrompt, gamePhase, lastAnswerCorrect, resolvedWhereScene, speechEnabled]);
+
+    return () => {
+      didCancel = true;
+      interactionHandle.cancel();
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      Speech.stop();
+    };
+  }, [currentPrompt, gamePhase, lastAnswerCorrect, resolvedWhereCopy, resolvedWhereScene, speechEnabled]);
 
   if (!currentPrompt || gamePhase !== 'feedback' || lastAnswerCorrect === null) {
-    return <ThemedView style={styles.container} />;
+    return <ThemedView style={styles.screen} />;
   }
 
   const gameFeedback = MVP_V1_GAME_COPY[currentPrompt.game_id]?.feedback as
     | Record<string, string>
     | undefined;
   const rawFeedbackSentence =
+    resolvedWhereCopy?.modelPhrase ??
     currentPrompt.model_phrase ??
     gameFeedback?.[currentPrompt.feedback_key] ??
     currentPrompt.correct_answer;
-  const feedbackSentence = resolvePromptSceneTokens(rawFeedbackSentence, resolvedWhereScene, {
+  const feedbackSentence = resolvedWhereCopy?.modelPhrase ?? resolvePromptSceneTokens(rawFeedbackSentence, resolvedWhereScene, {
     childName: DEFAULT_CHILD_NAME,
     parentLabel: DEFAULT_PARENT_LABEL,
   });
-
   const headingText = lastAnswerCorrect ? MVP_V1_UI_GLOBAL.nice_work : MVP_V1_UI_GLOBAL.try_again;
 
   const handleNext = () => {
@@ -129,60 +158,88 @@ export default function GameFeedbackScreen() {
   };
 
   return (
-    <ThemedView style={[styles.container, { backgroundColor: feedbackBackground }]}>
-      <ThemedText style={styles.statusEmoji}>{lastAnswerCorrect ? '✅' : '❌'}</ThemedText>
-      <ThemedText style={styles.headingText}>{headingText}</ThemedText>
-      <ThemedText style={styles.feedbackSentence}>{feedbackSentence}</ThemedText>
-      <Pressable
-        accessibilityRole="button"
-        onPress={handleNext}
-        style={({ pressed }) => [
-          styles.nextButton,
-          { backgroundColor: actionButtonColor, opacity: pressed ? 0.85 : 1 },
-        ]}>
-        <ThemedText style={styles.nextText}>{MVP_V1_UI_GLOBAL.do_another}</ThemedText>
-      </Pressable>
+    <ThemedView style={styles.screen}>
+      <View style={styles.content}>
+        <SurfaceCard
+          style={[
+            styles.card,
+            lastAnswerCorrect ? styles.successCard : styles.retryCard,
+          ]}>
+          <View style={[styles.badge, lastAnswerCorrect ? styles.successBadge : styles.retryBadge]}>
+            <ThemedText style={styles.badgeEmoji}>{lastAnswerCorrect ? '✓' : '↺'}</ThemedText>
+          </View>
+          <ThemedText role="childTitle" style={styles.heading}>
+            {headingText}
+          </ThemedText>
+          <ThemedText role="childBody" style={styles.feedbackSentence}>
+            {feedbackSentence}
+          </ThemedText>
+          <PillButton
+            accessibilityRole="button"
+            label={MVP_V1_UI_GLOBAL.do_another}
+            onPress={handleNext}
+            style={styles.nextButton}
+          />
+        </SurfaceCard>
+      </View>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
+    flex: 1,
+    backgroundColor: childTheme.background,
+  },
+  content: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: childTheme.pagePadding,
+  },
+  card: {
+    width: '100%',
+    maxWidth: 620,
+    alignItems: 'center',
     paddingHorizontal: 24,
-    gap: 20,
+    paddingVertical: 28,
+    gap: 18,
   },
-  statusEmoji: {
-    fontSize: 84,
-    lineHeight: 90,
+  successCard: {
+    backgroundColor: childTheme.successSurface,
+    borderColor: '#2f6145',
   },
-  headingText: {
-    fontSize: 34,
-    lineHeight: 40,
-    textAlign: 'center',
-    fontWeight: '700',
+  retryCard: {
+    backgroundColor: childTheme.surface,
+    borderColor: '#5d353a',
   },
-  feedbackSentence: {
-    fontSize: 24,
-    lineHeight: 30,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  nextButton: {
-    marginTop: 8,
-    minHeight: 72,
-    minWidth: 180,
-    borderRadius: 20,
+  badge: {
+    width: 92,
+    height: 92,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 28,
   },
-  nextText: {
-    color: '#ffffff',
-    fontSize: 24,
-    lineHeight: 28,
-    fontWeight: '700',
+  successBadge: {
+    backgroundColor: childTheme.success,
+  },
+  retryBadge: {
+    backgroundColor: '#7d4148',
+  },
+  badgeEmoji: {
+    fontSize: 42,
+    lineHeight: 42,
+    color: '#09130d',
+  },
+  heading: {
+    textAlign: 'center',
+  },
+  feedbackSentence: {
+    textAlign: 'center',
+    color: childTheme.text,
+  },
+  nextButton: {
+    width: '100%',
+    maxWidth: 280,
   },
 });

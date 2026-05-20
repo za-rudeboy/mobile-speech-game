@@ -1,13 +1,14 @@
 import { Href, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { AudioReplayButton } from '@/components/audio-replay-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { PillButton, SurfaceCard } from '@/components/ui/app-primitives';
+import { childTheme } from '@/constants/semantic-theme';
 import { DEFAULT_SESSION_PROMPT_COUNT, GAME_META } from '@/data/constants';
 import { usePromptAudio } from '@/hooks/use-prompt-audio';
-import { useThemeColor } from '@/hooks/use-theme-color';
 import { useGameStore } from '@/store/game-store';
 import { GameId } from '@/types';
 
@@ -36,13 +37,10 @@ export default function GameIntroScreen() {
   const currentLevel = useGameStore((state) => state.currentLevel);
   const speechEnabled = useGameStore((state) => state.speechEnabled);
   const [isStarting, setIsStarting] = useState(false);
-  const tintColor = useThemeColor({}, 'tint');
-  const onTintText = useThemeColor({}, 'background');
-  const secondaryText = useThemeColor({}, 'icon');
   const resolvedGameId = Array.isArray(gameId) ? gameId[0] : gameId;
   const activeGameId = resolvedGameId && isGameId(resolvedGameId) ? resolvedGameId : null;
   const gameMeta = activeGameId ? GAME_META[activeGameId] : null;
-  const subtitle = activeGameId ? INTRO_SUBTITLES[activeGameId] : 'Let\'s play';
+  const subtitle = activeGameId ? INTRO_SUBTITLES[activeGameId] : "Let's play";
   const introAudio = usePromptAudio({
     audioSource: activeGameId ? INTRO_AUDIO_BY_GAME[activeGameId] : undefined,
     autoPlay: activeGameId === 'where_is_it',
@@ -68,83 +66,91 @@ export default function GameIntroScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>
-        {gameMeta?.title ?? 'Game'}
-      </ThemedText>
-      <ThemedText style={styles.emoji}>{gameMeta?.emoji ?? '🎮'}</ThemedText>
-      <ThemedText style={[styles.subtitle, { color: secondaryText }]}>{subtitle}</ThemedText>
-      {activeGameId === 'where_is_it' ? (
-        <AudioReplayButton
-          accessibilityLabel="Replay where is it intro audio"
-          disabled={!introAudio.isAvailable}
-          isLoading={introAudio.isLoading}
-          isPlaying={introAudio.isPlaying}
-          label="Let's play Where Is It?"
-          onPress={() => {
-            void introAudio.play();
-          }}
-        />
-      ) : null}
-      <ThemedText style={[styles.levelInfo, { color: secondaryText }]}>
-        Level {currentLevel} · {DEFAULT_SESSION_PROMPT_COUNT} short prompts
-      </ThemedText>
-
-      <Pressable
-        accessibilityRole="button"
-        disabled={!gameMeta || isStarting}
-        onPress={handleStart}
-        style={({ pressed }) => [
-          styles.startButton,
-          { backgroundColor: tintColor, opacity: pressed || !gameMeta || isStarting ? 0.85 : 1 },
-        ]}>
-        <ThemedText style={[styles.startButtonText, { color: onTintText }]}>
-          {isStarting ? 'Loading...' : 'Start'}
-        </ThemedText>
-      </Pressable>
+    <ThemedView style={styles.screen}>
+      <View style={styles.content}>
+        <SurfaceCard style={styles.card}>
+          <View style={styles.iconBubble}>
+            <ThemedText style={styles.emoji}>{gameMeta?.emoji ?? '🎮'}</ThemedText>
+          </View>
+          <ThemedText role="childTitle" style={styles.title}>
+            {gameMeta?.title ?? 'Game'}
+          </ThemedText>
+          <ThemedText role="childBody" style={styles.subtitle}>
+            {subtitle}
+          </ThemedText>
+          <ThemedText role="childLabel" style={styles.levelInfo}>
+            Level {currentLevel} · {DEFAULT_SESSION_PROMPT_COUNT} short prompts
+          </ThemedText>
+          {activeGameId === 'where_is_it' ? (
+            <AudioReplayButton
+              accessibilityLabel="Replay where is it intro audio"
+              disabled={!introAudio.isAvailable}
+              isLoading={introAudio.isLoading}
+              isPlaying={introAudio.isPlaying}
+              label="Let's play Where Is It?"
+              onPress={() => {
+                void introAudio.play();
+              }}
+            />
+          ) : null}
+          <PillButton
+            accessibilityRole="button"
+            disabled={!gameMeta || isStarting}
+            label={isStarting ? 'Loading...' : 'Start'}
+            onPress={handleStart}
+            style={styles.startButton}
+          />
+        </SurfaceCard>
+      </View>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
+    flex: 1,
+    backgroundColor: childTheme.background,
+  },
+  content: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: childTheme.pagePadding,
+  },
+  card: {
+    width: '100%',
+    maxWidth: 620,
     paddingHorizontal: 24,
-    gap: 20,
+    paddingVertical: 28,
+    alignItems: 'center',
+    gap: 16,
+  },
+  iconBubble: {
+    width: 112,
+    height: 112,
+    borderRadius: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: childTheme.surfaceRaised,
+  },
+  emoji: {
+    fontSize: 62,
+    lineHeight: 68,
   },
   title: {
     textAlign: 'center',
-    fontSize: 36,
-    lineHeight: 42,
-  },
-  emoji: {
-    fontSize: 80,
-    lineHeight: 88,
   },
   subtitle: {
-    fontSize: 24,
-    lineHeight: 30,
     textAlign: 'center',
+    color: childTheme.textMuted,
   },
   levelInfo: {
-    fontSize: 18,
-    lineHeight: 24,
+    color: childTheme.textSoft,
     textAlign: 'center',
   },
   startButton: {
-    marginTop: 12,
-    minHeight: 72,
-    minWidth: 220,
-    paddingHorizontal: 28,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  startButtonText: {
-    fontSize: 26,
-    lineHeight: 30,
-    fontWeight: '700',
+    width: '100%',
+    maxWidth: 280,
+    marginTop: 8,
   },
 });

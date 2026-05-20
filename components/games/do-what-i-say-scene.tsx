@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { childShadow, childTheme } from '@/constants/semantic-theme';
 import { ResolvedDoWhatISayScene } from '@/data/content/do-what-i-say-scenes';
 
 interface LayoutRect {
@@ -25,6 +26,7 @@ interface DragResolution {
 }
 
 interface DoWhatISaySceneProps {
+  compact?: boolean;
   scene: ResolvedDoWhatISayScene | null;
   demoNonce: number;
   highlightTargetLabel?: string | null;
@@ -35,6 +37,7 @@ const STAGE_HEIGHT = 320;
 const ITEM_SIZE = 88;
 
 export function DoWhatISayScene({
+  compact = false,
   scene,
   demoNonce,
   highlightTargetLabel,
@@ -45,13 +48,15 @@ export function DoWhatISayScene({
   const [targetLayouts, setTargetLayouts] = useState<Record<string, LayoutRect>>({});
   const [activeTargetLabel, setActiveTargetLabel] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState(false);
+  const itemSize = compact ? 72 : ITEM_SIZE;
+  const stageHeight = compact ? 252 : STAGE_HEIGHT;
 
   const startPosition = useMemo(
     () => ({
-      x: Math.max((stageWidth - ITEM_SIZE) / 2, 0),
-      y: STAGE_HEIGHT - ITEM_SIZE - 28,
+      x: Math.max((stageWidth - itemSize) / 2, 0),
+      y: stageHeight - itemSize - (compact ? 22 : 28),
     }),
-    [stageWidth]
+    [compact, itemSize, stageHeight, stageWidth]
   );
 
   useEffect(() => {
@@ -71,8 +76,8 @@ export function DoWhatISayScene({
       return;
     }
 
-    const targetX = correctTarget.x + (correctTarget.width - ITEM_SIZE) / 2 - startPosition.x;
-    const targetY = correctTarget.y + (correctTarget.height - ITEM_SIZE) / 2 - startPosition.y;
+    const targetX = correctTarget.x + (correctTarget.width - itemSize) / 2 - startPosition.x;
+    const targetY = correctTarget.y + (correctTarget.height - itemSize) / 2 - startPosition.y;
 
     setIsLocked(true);
     setActiveTargetLabel(scene.correctTargetLabel);
@@ -94,7 +99,17 @@ export function DoWhatISayScene({
       setActiveTargetLabel(null);
       setIsLocked(false);
     });
-  }, [demoNonce, isLocked, pan, scene, stageWidth, startPosition.x, startPosition.y, targetLayouts]);
+  }, [
+    demoNonce,
+    isLocked,
+    itemSize,
+    pan,
+    scene,
+    stageWidth,
+    startPosition.x,
+    startPosition.y,
+    targetLayouts,
+  ]);
 
   const resetDrag = () => {
     Animated.timing(pan, {
@@ -109,8 +124,8 @@ export function DoWhatISayScene({
   };
 
   const animateSuccess = (targetLabel: string, targetLayout: LayoutRect) => {
-    const targetX = targetLayout.x + (targetLayout.width - ITEM_SIZE) / 2 - startPosition.x;
-    const targetY = targetLayout.y + (targetLayout.height - ITEM_SIZE) / 2 - startPosition.y;
+    const targetX = targetLayout.x + (targetLayout.width - itemSize) / 2 - startPosition.x;
+    const targetY = targetLayout.y + (targetLayout.height - itemSize) / 2 - startPosition.y;
 
     setIsLocked(true);
     setActiveTargetLabel(targetLabel);
@@ -129,8 +144,8 @@ export function DoWhatISayScene({
       return;
     }
 
-    const centerX = startPosition.x + dx + ITEM_SIZE / 2;
-    const centerY = startPosition.y + dy + ITEM_SIZE / 2;
+    const centerX = startPosition.x + dx + itemSize / 2;
+    const centerY = startPosition.y + dy + itemSize / 2;
     const matchedTarget = scene.targets.find((target) => {
       const layout = targetLayouts[target.label];
       if (!layout) {
@@ -210,7 +225,11 @@ export function DoWhatISayScene({
 
   return (
     <View
-      style={styles.canvas}
+      style={[
+        styles.canvas,
+        compact && styles.canvasCompact,
+        { minHeight: stageHeight },
+      ]}
       onLayout={({ nativeEvent }) => {
         setStageWidth(nativeEvent.layout.width);
       }}>
@@ -225,33 +244,47 @@ export function DoWhatISayScene({
               onLayout={updateTargetLayout(target.label)}
               style={[
                 styles.targetCard,
+                compact && styles.targetCardCompact,
                 target.kind === 'person' ? styles.personTargetCard : styles.placeTargetCard,
                 isHighlighted && styles.targetCardHighlighted,
               ]}>
-              <ThemedText style={styles.targetEmoji}>{target.emoji}</ThemedText>
-              <ThemedText style={styles.targetLabel}>{target.label}</ThemedText>
+              <ThemedText style={[styles.targetEmoji, compact && styles.targetEmojiCompact]}>
+                {target.emoji}
+              </ThemedText>
+              <ThemedText style={[styles.targetLabel, compact && styles.targetLabelCompact]}>
+                {target.label}
+              </ThemedText>
             </View>
           );
         })}
       </View>
 
-      <View style={styles.startZone}>
-        <ThemedText style={styles.startZoneLabel}>{scene.startLabel}</ThemedText>
+      <View style={[styles.startZone, compact && styles.startZoneCompact]}>
+        <ThemedText style={[styles.startZoneLabel, compact && styles.startZoneLabelCompact]}>
+          {scene.startLabel}
+        </ThemedText>
       </View>
 
       <Animated.View
         {...panResponder.panHandlers}
         style={[
           styles.draggableItem,
+          compact && styles.draggableItemCompact,
           {
             left: startPosition.x,
             top: startPosition.y,
+            width: itemSize,
+            height: itemSize,
             transform: pan.getTranslateTransform(),
           },
         ]}>
-        <Pressable disabled={isLocked} style={styles.draggableInner}>
-          <ThemedText style={styles.itemEmoji}>{scene.item.emoji}</ThemedText>
-          <ThemedText style={styles.itemLabel}>{scene.item.label}</ThemedText>
+        <Pressable disabled={isLocked} style={[styles.draggableInner, compact && styles.draggableInnerCompact]}>
+          <ThemedText style={[styles.itemEmoji, compact && styles.itemEmojiCompact]}>
+            {scene.item.emoji}
+          </ThemedText>
+          <ThemedText style={[styles.itemLabel, compact && styles.itemLabelCompact]}>
+            {scene.item.label}
+          </ThemedText>
         </Pressable>
       </Animated.View>
     </View>
@@ -260,15 +293,20 @@ export function DoWhatISayScene({
 
 const styles = StyleSheet.create({
   canvas: {
-    minHeight: STAGE_HEIGHT,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.68)',
+    borderRadius: childTheme.radiusMd,
+    backgroundColor: childTheme.surfaceRaised,
     borderWidth: 1,
-    borderColor: 'rgba(74, 144, 217, 0.12)',
+    borderColor: childTheme.outline,
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 18,
     marginBottom: 14,
+  },
+  canvasCompact: {
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 14,
+    marginBottom: 8,
   },
   targetGrid: {
     flexDirection: 'row',
@@ -278,36 +316,50 @@ const styles = StyleSheet.create({
   },
   targetCard: {
     width: '31%',
-    minHeight: 116,
+    minHeight: 108,
     borderRadius: 20,
     borderWidth: 2,
-    borderColor: 'rgba(74, 144, 217, 0.14)',
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderColor: childTheme.outline,
+    backgroundColor: childTheme.surface,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 8,
     paddingVertical: 12,
   },
+  targetCardCompact: {
+    minHeight: 86,
+    borderRadius: 18,
+    paddingHorizontal: 6,
+    paddingVertical: 8,
+  },
   personTargetCard: {
-    backgroundColor: 'rgba(234, 246, 255, 0.96)',
+    backgroundColor: '#202935',
   },
   placeTargetCard: {
-    backgroundColor: 'rgba(246, 249, 255, 0.96)',
+    backgroundColor: '#1d242d',
   },
   targetCardHighlighted: {
-    borderColor: '#4A90D9',
-    backgroundColor: '#DCEEFE',
+    borderColor: childTheme.primary,
+    backgroundColor: '#274055',
   },
   targetEmoji: {
-    fontSize: 44,
-    lineHeight: 50,
-    marginBottom: 6,
+    fontSize: 40,
+    lineHeight: 46,
+    marginBottom: 4,
+  },
+  targetEmojiCompact: {
+    fontSize: 30,
+    lineHeight: 34,
   },
   targetLabel: {
-    fontSize: 18,
-    lineHeight: 22,
-    fontWeight: '700',
+    fontSize: 17,
+    lineHeight: 20,
     textAlign: 'center',
+    color: childTheme.text,
+  },
+  targetLabelCompact: {
+    fontSize: 14,
+    lineHeight: 17,
   },
   startZone: {
     position: 'absolute',
@@ -318,42 +370,62 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: 'rgba(74, 144, 217, 0.32)',
+    borderColor: '#53718a',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  startZoneCompact: {
+    left: 18,
+    right: 18,
+    bottom: 18,
+    height: 68,
   },
   startZoneLabel: {
     fontSize: 16,
     lineHeight: 20,
-    fontWeight: '700',
-    color: '#4A6478',
+    color: childTheme.textSoft,
+  },
+  startZoneLabelCompact: {
+    fontSize: 14,
+    lineHeight: 18,
   },
   draggableItem: {
     position: 'absolute',
     width: ITEM_SIZE,
     height: ITEM_SIZE,
   },
+  draggableItemCompact: {
+    width: 72,
+    height: 72,
+  },
   draggableInner: {
     flex: 1,
-    borderRadius: 24,
-    backgroundColor: '#4A90D9',
+    borderRadius: childTheme.radiusMd,
+    backgroundColor: childTheme.primary,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    shadowColor: '#1E3E5A',
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 8 },
+    ...childShadow,
+  },
+  draggableInnerCompact: {
+    gap: 2,
   },
   itemEmoji: {
     fontSize: 38,
     lineHeight: 42,
   },
+  itemEmojiCompact: {
+    fontSize: 30,
+    lineHeight: 34,
+  },
   itemLabel: {
-    color: '#FFFFFF',
+    color: childTheme.onPrimary,
     fontSize: 16,
     lineHeight: 20,
-    fontWeight: '700',
     textTransform: 'capitalize',
+  },
+  itemLabelCompact: {
+    fontSize: 13,
+    lineHeight: 16,
   },
 });

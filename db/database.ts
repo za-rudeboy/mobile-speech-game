@@ -801,7 +801,12 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     await database.execAsync('PRAGMA user_version = 11;');
   }
 
-  await database.execAsync('PRAGMA user_version = 11;');
+  if (currentVersion < 12) {
+    await upsertSeedContent(database);
+    await database.execAsync('PRAGMA user_version = 12;');
+  }
+
+  await database.execAsync('PRAGMA user_version = 12;');
   await seedIfFirstRun(database);
 }
 

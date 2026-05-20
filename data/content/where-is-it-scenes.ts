@@ -20,6 +20,11 @@ interface WhereIsItImageScene {
 }
 
 export type ResolvedWhereIsItScene = WhereIsItImageScene;
+export interface ResolvedWhereIsItCopy {
+  spokenText: string;
+  supportText: string;
+  modelPhrase: string;
+}
 
 const IMAGE_SCENES: WhereIsItImageScene[] = [
   {
@@ -153,6 +158,10 @@ function pickOne<T>(items: T[], random: () => number) {
   return items[Math.floor(random() * items.length)];
 }
 
+function findSceneById(sceneId: string) {
+  return IMAGE_SCENES.find((scene) => scene.id === sceneId);
+}
+
 export function resolveWhereIsItScene(
   prompt: PromptTemplate,
   sessionId: string,
@@ -160,6 +169,11 @@ export function resolveWhereIsItScene(
 ): ResolvedWhereIsItScene | null {
   if (prompt.game_id !== 'where_is_it' || !isWhereRelation(prompt.correct_answer)) {
     return null;
+  }
+
+  const fixedScene = findSceneById(prompt.visual_scene_key) ?? findSceneById(prompt.scene_recipe_key ?? '');
+  if (fixedScene && fixedScene.relation === prompt.correct_answer) {
+    return fixedScene;
   }
 
   const matchingScenes = IMAGE_SCENES.filter((scene) => scene.relation === prompt.correct_answer);
@@ -170,6 +184,20 @@ export function resolveWhereIsItScene(
 
   const random = createRandom(`${sessionId}:${prompt.prompt_id}:${promptIndex}:${prompt.correct_answer}`);
   return pickOne(matchingScenes, random);
+}
+
+export function resolveWhereIsItCopy(scene: ResolvedWhereIsItScene | null): ResolvedWhereIsItCopy | null {
+  if (!scene) {
+    return null;
+  }
+
+  const modelPhrase = `The ${scene.subject.label} is ${scene.relation} the ${scene.anchor.label}.`;
+
+  return {
+    spokenText: `Where is the ${scene.subject.label}?`,
+    supportText: modelPhrase,
+    modelPhrase,
+  };
 }
 
 export function resolvePromptSceneTokens(

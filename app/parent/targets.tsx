@@ -40,6 +40,7 @@ export default function TargetsScreen() {
     const grouped: Record<GameId, TargetConcept[]> = {
       my_turn_your_turn: [],
       where_is_it: [],
+      story_steps: [],
       daily_phrase_practice: [],
       do_what_i_say: [],
       build_the_sentence: [],

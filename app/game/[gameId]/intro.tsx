@@ -23,6 +23,7 @@ function isGameId(value: string): value is GameId {
 const INTRO_SUBTITLES: Record<GameId, string> = {
   my_turn_your_turn: 'We will practice turns later',
   where_is_it: "Let's practice where things are",
+  story_steps: "Let's tell picture stories together",
   daily_phrase_practice: "Let's practice words for real moments",
   do_what_i_say: "Let's follow short directions together",
   build_the_sentence: "Let's use a helpful sentence strip",

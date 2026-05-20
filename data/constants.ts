@@ -1,6 +1,7 @@
 export const GAME_IDS = {
   MY_TURN_YOUR_TURN: 'my_turn_your_turn' as const,
   WHERE_IS_IT: 'where_is_it' as const,
+  STORY_STEPS: 'story_steps' as const,
   DAILY_PHRASE_PRACTICE: 'daily_phrase_practice' as const,
   DO_WHAT_I_SAY: 'do_what_i_say' as const,
   BUILD_THE_SENTENCE: 'build_the_sentence' as const,
@@ -10,12 +11,14 @@ export const GAME_IDS = {
 
 export const FIRST_WAVE_GAME_IDS = [
   GAME_IDS.WHERE_IS_IT,
+  GAME_IDS.STORY_STEPS,
   GAME_IDS.DAILY_PHRASE_PRACTICE,
   GAME_IDS.DO_WHAT_I_SAY,
 ] as const;
 
 export const HOME_GAME_ORDER = [
   GAME_IDS.WHERE_IS_IT,
+  GAME_IDS.STORY_STEPS,
   GAME_IDS.DAILY_PHRASE_PRACTICE,
   GAME_IDS.DO_WHAT_I_SAY,
   GAME_IDS.MY_TURN_YOUR_TURN,
@@ -42,6 +45,11 @@ export const GAME_META = {
     title: 'Where Is It?',
     subtitle: 'in, on, under, next to',
     emoji: '🔍',
+  },
+  story_steps: {
+    title: 'Story Steps',
+    subtitle: 'first, then, because',
+    emoji: '📖',
   },
   daily_phrase_practice: {
     title: 'Daily Phrase Practice',

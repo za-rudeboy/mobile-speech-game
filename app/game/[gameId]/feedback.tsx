@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { PillButton, SurfaceCard } from '@/components/ui/app-primitives';
 import { childTheme } from '@/constants/semantic-theme';
+import { resolveStoryStepsCopy, resolveStoryStepsScene } from '@/data/content/story-steps-scenes';
 import {
   resolvePromptSceneTokens,
   resolveWhereIsItCopy,
@@ -45,6 +46,20 @@ export default function GameFeedbackScreen() {
 
     return resolveWhereIsItCopy(resolvedWhereScene);
   }, [currentPrompt?.game_id, resolvedWhereScene]);
+  const resolvedStoryScene = useMemo(() => {
+    if (!currentPrompt) {
+      return null;
+    }
+
+    return resolveStoryStepsScene(currentPrompt);
+  }, [currentPrompt]);
+  const resolvedStoryCopy = useMemo(() => {
+    if (!currentPrompt || currentPrompt.game_id !== 'story_steps') {
+      return null;
+    }
+
+    return resolveStoryStepsCopy(currentPrompt, resolvedStoryScene);
+  }, [currentPrompt, resolvedStoryScene]);
 
   useEffect(() => {
     if (!resolvedGameId || !currentGameId || currentGameId !== resolvedGameId || prompts.length === 0) {
@@ -77,6 +92,7 @@ export default function GameFeedbackScreen() {
       | Record<string, string>
       | undefined;
     const rawFeedbackSentence =
+      resolvedStoryCopy?.modelPhrase ??
       resolvedWhereCopy?.modelPhrase ??
       currentPrompt.model_phrase ??
       gameFeedback?.[currentPrompt.feedback_key] ??
@@ -122,7 +138,7 @@ export default function GameFeedbackScreen() {
       }
       Speech.stop();
     };
-  }, [currentPrompt, gamePhase, lastAnswerCorrect, resolvedWhereCopy, resolvedWhereScene, speechEnabled]);
+  }, [currentPrompt, gamePhase, lastAnswerCorrect, resolvedStoryCopy, resolvedWhereCopy, resolvedWhereScene, speechEnabled]);
 
   if (!currentPrompt || gamePhase !== 'feedback' || lastAnswerCorrect === null) {
     return <ThemedView style={styles.screen} />;
@@ -132,6 +148,7 @@ export default function GameFeedbackScreen() {
     | Record<string, string>
     | undefined;
   const rawFeedbackSentence =
+    resolvedStoryCopy?.modelPhrase ??
     resolvedWhereCopy?.modelPhrase ??
     currentPrompt.model_phrase ??
     gameFeedback?.[currentPrompt.feedback_key] ??

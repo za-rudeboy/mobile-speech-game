@@ -89,6 +89,16 @@ export const MVP_V1_GAME_COPY = {
       car_next_to_block: 'The car is next to the block.',
     },
   },
+  story_steps: {
+    prompts: {
+      default: 'Tell the story.',
+    },
+    feedback: {
+      brush_sleep: 'First he brushed his teeth. Then he went to sleep.',
+      wash_eat: 'First he washed his hands. Then he ate.',
+      cry_ice_cream: 'He is crying because he dropped his ice cream.',
+    },
+  },
   daily_phrase_practice: {
     prompts: {
       default: 'Say the helpful phrase.',

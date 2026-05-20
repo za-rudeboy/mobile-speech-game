@@ -6,6 +6,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { AudioReplayButton } from '@/components/audio-replay-button';
 import { DoWhatISayScene } from '@/components/games/do-what-i-say-scene';
+import { StoryStepsScene } from '@/components/games/story-steps-scene';
 import { WhereIsItScene } from '@/components/games/where-is-it-scene';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -13,6 +14,11 @@ import { PillButton, ProgressBar, SurfaceCard } from '@/components/ui/app-primit
 import { childTheme } from '@/constants/semantic-theme';
 import { resolveDoWhatISayScene } from '@/data/content/do-what-i-say-scenes';
 import { resolveCopyTokens } from '@/data/content/mvp-v1';
+import {
+  ResolvedStoryStepsScene,
+  resolveStoryStepsCopy,
+  resolveStoryStepsScene,
+} from '@/data/content/story-steps-scenes';
 import { DEFAULT_CHILD_NAME, DEFAULT_PARENT_LABEL } from '@/data/constants';
 import {
   ResolvedWhereIsItScene,
@@ -102,6 +108,9 @@ function PhraseStrip({ text }: { text: string }) {
 function renderScene(
   prompt: PromptTemplate,
   whereScene: ResolvedWhereIsItScene | null,
+  storyScene: ResolvedStoryStepsScene | null,
+  storyHighlightCardId: string | null,
+  onStorySelect: (cardId: string) => void,
   compact: boolean
 ) {
   if (prompt.game_id === 'my_turn_your_turn') {
@@ -126,6 +135,17 @@ function renderScene(
 
   if (prompt.game_id === 'where_is_it') {
     return <WhereIsItScene compact={compact} scene={whereScene} />;
+  }
+
+  if (prompt.game_id === 'story_steps') {
+    return (
+      <StoryStepsScene
+        compact={compact}
+        highlightedCardId={storyHighlightCardId}
+        onSelect={onStorySelect}
+        scene={storyScene}
+      />
+    );
   }
 
   return <GenericEmojiScene sceneKey={prompt.visual_scene_key} />;
@@ -154,6 +174,10 @@ function buildPromptLabel(prompt: PromptTemplate) {
 
   if (prompt.game_id === 'where_is_it') {
     return 'Where is it?';
+  }
+
+  if (prompt.game_id === 'story_steps') {
+    return 'Story Steps';
   }
 
   if (prompt.prompt_type === 'build_sentence') {
@@ -204,6 +228,7 @@ export default function GamePlayScreen() {
   const [dragDemoNonce, setDragDemoNonce] = useState(0);
   const [dragIncorrectAttemptCount, setDragIncorrectAttemptCount] = useState(0);
   const [dragHighlightTargetLabel, setDragHighlightTargetLabel] = useState<string | null>(null);
+  const [storyHighlightCardId, setStoryHighlightCardId] = useState<string | null>(null);
   const resolvedWhereScene = useMemo(() => {
     if (!currentPrompt) {
       return null;
@@ -218,9 +243,27 @@ export default function GamePlayScreen() {
 
     return resolveWhereIsItCopy(resolvedWhereScene);
   }, [currentPrompt?.game_id, resolvedWhereScene]);
+  const resolvedStoryScene = useMemo(() => {
+    if (!currentPrompt) {
+      return null;
+    }
+
+    return resolveStoryStepsScene(currentPrompt);
+  }, [currentPrompt]);
+  const resolvedStoryCopy = useMemo(() => {
+    if (!currentPrompt || currentPrompt.game_id !== 'story_steps') {
+      return null;
+    }
+
+    return resolveStoryStepsCopy(currentPrompt, resolvedStoryScene);
+  }, [currentPrompt, resolvedStoryScene]);
   const resolvedSpokenText = useMemo(() => {
     if (!currentPrompt) {
       return '';
+    }
+
+    if (resolvedStoryCopy) {
+      return resolvedStoryCopy.spokenText;
     }
 
     if (resolvedWhereCopy) {
@@ -231,10 +274,14 @@ export default function GamePlayScreen() {
       childName: DEFAULT_CHILD_NAME,
       parentLabel: DEFAULT_PARENT_LABEL,
     });
-  }, [currentPrompt, resolvedWhereCopy, resolvedWhereScene]);
-  const resolvedSupportText = useMemo(() => {
+  }, [currentPrompt, resolvedStoryCopy, resolvedWhereCopy, resolvedWhereScene]);
+  const resolvedVisibleSupportText = useMemo(() => {
     if (!currentPrompt) {
       return '';
+    }
+
+    if (resolvedStoryCopy) {
+      return resolvedStoryCopy.frameText;
     }
 
     if (resolvedWhereCopy) {
@@ -245,7 +292,25 @@ export default function GamePlayScreen() {
       childName: DEFAULT_CHILD_NAME,
       parentLabel: DEFAULT_PARENT_LABEL,
     });
-  }, [currentPrompt, resolvedWhereCopy, resolvedWhereScene]);
+  }, [currentPrompt, resolvedStoryCopy, resolvedWhereCopy, resolvedWhereScene]);
+  const resolvedSupportSpeechText = useMemo(() => {
+    if (!currentPrompt) {
+      return '';
+    }
+
+    if (resolvedStoryCopy) {
+      return resolvedStoryCopy.helpText;
+    }
+
+    if (resolvedWhereCopy) {
+      return resolvedWhereCopy.supportText;
+    }
+
+    return resolvePromptSceneTokens(buildSupportText(currentPrompt), resolvedWhereScene, {
+      childName: DEFAULT_CHILD_NAME,
+      parentLabel: DEFAULT_PARENT_LABEL,
+    });
+  }, [currentPrompt, resolvedStoryCopy, resolvedWhereCopy, resolvedWhereScene]);
   const resolvedDoWhatISayScene = useMemo(() => {
     if (!currentPrompt) {
       return null;
@@ -341,6 +406,7 @@ export default function GamePlayScreen() {
     setSupportCardMode(null);
     setDragIncorrectAttemptCount(0);
     setDragHighlightTargetLabel(null);
+    setStoryHighlightCardId(null);
     holdFeedbackNavigationRef.current = false;
     if (feedbackDelayRef.current) {
       clearTimeout(feedbackDelayRef.current);
@@ -356,10 +422,12 @@ export default function GamePlayScreen() {
   const answerCount = currentPrompt.answer_options.length;
   const isTapObjectPrompt = currentPrompt.prompt_type === 'tap_object';
   const isDragToPlacePrompt = currentPrompt.prompt_type === 'drag_to_place';
+  const isStoryPrompt = currentPrompt.game_id === 'story_steps';
   const isTwoOptionLayout = answerCount <= 2;
   const isThreeOptionLayout = answerCount === 3;
   const promptLabel = buildPromptLabel(currentPrompt);
   const showSupportFrame =
+    currentPrompt.game_id === 'story_steps' ||
     currentPrompt.game_id === 'where_is_it' ||
     currentPrompt.game_id === 'daily_phrase_practice' ||
     currentPrompt.prompt_type === 'build_sentence';
@@ -389,7 +457,28 @@ export default function GamePlayScreen() {
     setSupportCardMode('hint');
   };
 
+  const handleStoryFailure = () => {
+    setDragIncorrectAttemptCount((count) => count + 1);
+    setStoryHighlightCardId(currentPrompt.correct_answer);
+    setSupportCardMode('hint');
+  };
+
   const handleAnswerPress = (answer: string) => {
+    if (isStoryPrompt) {
+      if (answer !== currentPrompt.correct_answer) {
+        handleStoryFailure();
+        return;
+      }
+
+      submitAnswer(answer, undefined, {
+        incorrectAttemptCount: dragIncorrectAttemptCount,
+        independentSuccess: dragIncorrectAttemptCount === 0,
+      });
+      void stopPromptPlayback();
+      router.replace(`/game/${resolvedGameId}/feedback` as Href);
+      return;
+    }
+
     if (isDragToPlacePrompt) {
       if (answer !== currentPrompt.correct_answer) {
         handleDragFailure();
@@ -433,6 +522,7 @@ export default function GamePlayScreen() {
     markSupportAction('try_again');
     setSupportCardMode(null);
     setDragHighlightTargetLabel(null);
+    setStoryHighlightCardId(null);
   };
 
   return (
@@ -499,7 +589,14 @@ export default function GamePlayScreen() {
               onResolved={handleDragResolved}
             />
           ) : (
-            renderScene(currentPrompt, resolvedWhereScene, isCompactLayout)
+            renderScene(
+              currentPrompt,
+              resolvedWhereScene,
+              resolvedStoryScene,
+              storyHighlightCardId,
+              handleAnswerPress,
+              isCompactLayout
+            )
           )}
           <ThemedText
             role="childTitle"
@@ -520,11 +617,11 @@ export default function GamePlayScreen() {
               <ThemedText
                 role="childBody"
                 style={[styles.frameBadgeText, isCompactLayout && styles.frameBadgeTextCompact]}>
-                {resolvedSupportText}
+                {resolvedVisibleSupportText}
               </ThemedText>
             </View>
           ) : null}
-          {showPhraseStrip ? <PhraseStrip text={resolvedSupportText} /> : null}
+          {showPhraseStrip ? <PhraseStrip text={resolvedSupportSpeechText} /> : null}
         </SurfaceCard>
 
         <View style={[styles.supportRow, isCompactLayout && styles.supportRowCompact]}>
@@ -539,12 +636,16 @@ export default function GamePlayScreen() {
               if (isDragToPlacePrompt) {
                 setDragHighlightTargetLabel(currentPrompt.correct_answer);
               }
+              if (isStoryPrompt) {
+                setStoryHighlightCardId(currentPrompt.correct_answer);
+              }
               if (
+                currentPrompt.game_id === 'story_steps' ||
                 currentPrompt.game_id === 'where_is_it' ||
                 currentPrompt.game_id === 'daily_phrase_practice' ||
                 currentPrompt.prompt_type === 'build_sentence'
               ) {
-                void speakSupportText(resolvedSupportText);
+                void speakSupportText(resolvedSupportSpeechText);
               }
             }}
             style={styles.supportButton}
@@ -590,7 +691,7 @@ export default function GamePlayScreen() {
           <SurfaceCard style={[styles.supportCard, isCompactLayout && styles.supportCardCompact]}>
             <ThemedText role="childLabel">Let&apos;s do it together</ThemedText>
             <ThemedText role="childBody" style={[styles.supportCardText, isCompactLayout && styles.supportCardTextCompact]}>
-              {resolvedSupportText}
+              {resolvedSupportSpeechText}
             </ThemedText>
             <PillButton
               compact={isCompactLayout}
@@ -616,65 +717,67 @@ export default function GamePlayScreen() {
           </SurfaceCard>
         ) : null}
 
-        <View
-          style={[
-            styles.answersWrap,
-            isCompactLayout && styles.answersWrapCompact,
-            isTapObjectPrompt || isTwoOptionLayout
-              ? styles.answersWrapRow
-              : isThreeOptionLayout
-                ? styles.answersWrapStack
-                : styles.answersWrapGrid,
-          ]}>
-          {currentPrompt.answer_options.map((answer) => {
-            const resolvedAnswerLabel = resolveCopyTokens(answer, {
-              childName: DEFAULT_CHILD_NAME,
-              parentLabel: DEFAULT_PARENT_LABEL,
-            });
+        {isStoryPrompt ? null : (
+          <View
+            style={[
+              styles.answersWrap,
+              isCompactLayout && styles.answersWrapCompact,
+              isTapObjectPrompt || isTwoOptionLayout
+                ? styles.answersWrapRow
+                : isThreeOptionLayout
+                  ? styles.answersWrapStack
+                  : styles.answersWrapGrid,
+            ]}>
+            {currentPrompt.answer_options.map((answer) => {
+              const resolvedAnswerLabel = resolveCopyTokens(answer, {
+                childName: DEFAULT_CHILD_NAME,
+                parentLabel: DEFAULT_PARENT_LABEL,
+              });
 
-            if (isTapObjectPrompt) {
+              if (isTapObjectPrompt) {
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    key={answer}
+                    onPress={() => handleAnswerPress(answer)}
+                    style={({ pressed }) => [
+                      styles.personCard,
+                      isCompactLayout && styles.personCardCompact,
+                      pressed && styles.answerPressed,
+                    ]}>
+                    <ThemedText style={[styles.personCardEmoji, isCompactLayout && styles.personCardEmojiCompact]}>
+                      {getPersonEmoji(resolvedAnswerLabel)}
+                    </ThemedText>
+                    <ThemedText role="childButton" style={[styles.personCardLabel, isCompactLayout && styles.personCardLabelCompact]}>
+                      {resolvedAnswerLabel}
+                    </ThemedText>
+                  </Pressable>
+                );
+              }
+
               return (
                 <Pressable
                   accessibilityRole="button"
                   key={answer}
                   onPress={() => handleAnswerPress(answer)}
                   style={({ pressed }) => [
-                    styles.personCard,
-                    isCompactLayout && styles.personCardCompact,
+                    styles.answerButton,
+                    isCompactLayout && styles.answerButtonCompact,
+                    isTwoOptionLayout
+                      ? styles.answerButtonRow
+                      : isThreeOptionLayout
+                        ? styles.answerButtonStack
+                        : styles.answerButtonGrid,
                     pressed && styles.answerPressed,
                   ]}>
-                  <ThemedText style={[styles.personCardEmoji, isCompactLayout && styles.personCardEmojiCompact]}>
-                    {getPersonEmoji(resolvedAnswerLabel)}
-                  </ThemedText>
-                  <ThemedText role="childButton" style={[styles.personCardLabel, isCompactLayout && styles.personCardLabelCompact]}>
+                  <ThemedText role="childButton" style={[styles.answerText, isCompactLayout && styles.answerTextCompact]}>
                     {resolvedAnswerLabel}
                   </ThemedText>
                 </Pressable>
               );
-            }
-
-            return (
-              <Pressable
-                accessibilityRole="button"
-                key={answer}
-                onPress={() => handleAnswerPress(answer)}
-                style={({ pressed }) => [
-                  styles.answerButton,
-                  isCompactLayout && styles.answerButtonCompact,
-                  isTwoOptionLayout
-                    ? styles.answerButtonRow
-                    : isThreeOptionLayout
-                      ? styles.answerButtonStack
-                      : styles.answerButtonGrid,
-                  pressed && styles.answerPressed,
-                ]}>
-                <ThemedText role="childButton" style={[styles.answerText, isCompactLayout && styles.answerTextCompact]}>
-                  {resolvedAnswerLabel}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
-        </View>
+            })}
+          </View>
+        )}
         </View>
       </SafeAreaView>
     </ThemedView>

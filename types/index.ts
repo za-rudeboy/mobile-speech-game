@@ -2,6 +2,7 @@
 export type GameId =
   | 'my_turn_your_turn'
   | 'where_is_it'
+  | 'story_steps'
   | 'daily_phrase_practice'
   | 'do_what_i_say'
   | 'build_the_sentence'
@@ -10,6 +11,7 @@ export type GameId =
 export type TargetCategory =
   | 'pronoun'
   | 'location'
+  | 'story_relation'
   | 'functional_phrase'
   | 'direction'
   | 'sentence'
@@ -19,6 +21,8 @@ export type InputMode = 'touch' | 'speech';
 export type PromptType =
   | 'choose_between_two'
   | 'choose_between_four'
+  | 'story_sequence'
+  | 'story_cause'
   | 'tap_object'
   | 'drag_to_place'
   | 'repeat_and_use'

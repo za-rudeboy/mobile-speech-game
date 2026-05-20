@@ -302,6 +302,29 @@ function selectBalancedWhereIsItPrompts(prompts: PromptTemplate[], sessionCount:
   return mergeWithoutAdjacentRelationDuplicates(selected.slice(0, sessionCount));
 }
 
+function selectBalancedStoryStepsPrompts(prompts: PromptTemplate[], sessionCount: number) {
+  const sequencePrompts = shufflePrompts(
+    prompts.filter((prompt) => prompt.prompt_type === 'story_sequence')
+  );
+  const causePrompts = shufflePrompts(
+    prompts.filter((prompt) => prompt.prompt_type === 'story_cause')
+  );
+
+  const selected: PromptTemplate[] = [
+    ...sequencePrompts.slice(0, Math.max(sessionCount - 1, 1)),
+    ...causePrompts.slice(0, 1),
+  ];
+
+  if (selected.length < sessionCount) {
+    const leftovers = shufflePrompts(
+      prompts.filter((prompt) => !selected.some((item) => item.prompt_id === prompt.prompt_id))
+    );
+    selected.push(...leftovers.slice(0, sessionCount - selected.length));
+  }
+
+  return mergeWithoutAdjacentDuplicates(shufflePrompts(selected).slice(0, sessionCount));
+}
+
 export const useGameStore = create<GameState>((set, get) => ({
   ...initialGameState,
 
@@ -353,6 +376,10 @@ export const useGameStore = create<GameState>((set, get) => ({
           (prompt) => isWhereRelation(prompt.correct_answer)
         );
         selectedPrompts = selectBalancedWhereIsItPrompts(wherePool, sessionCount);
+      } else if (gameId === 'story_steps') {
+        const allLevels = Array.from({ length: maxLevel }, (_, index) => index + 1);
+        const storyPool = await getPromptsForGameLevels(gameId, allLevels, enabledTargetIds);
+        selectedPrompts = selectBalancedStoryStepsPrompts(storyPool, sessionCount);
       } else if (currentLevel === 1) {
         const levelOnePool = await getPromptsForGameLevels(gameId, [1], enabledTargetIds);
         selectedPrompts = shufflePrompts(levelOnePool).slice(0, sessionCount);

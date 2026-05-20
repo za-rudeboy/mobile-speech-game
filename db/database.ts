@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 
 import { SEED_PROMPTS_GAME1 } from '@/data/seeds/prompts';
 import { SEED_PROMPTS_GAME2 } from '@/data/seeds/prompts-game2';
+import { SEED_PROMPTS_STORY_STEPS } from '@/data/seeds/prompts-story-steps';
 import {
   SEED_PROMPTS_BUILD_THE_SENTENCE,
   SEED_PROMPTS_DAILY_PHRASE_PRACTICE,
@@ -458,6 +459,7 @@ function getSeedPrompts(): PromptTemplate[] {
   return [
     ...SEED_PROMPTS_GAME1,
     ...SEED_PROMPTS_GAME2,
+    ...SEED_PROMPTS_STORY_STEPS,
     ...SEED_PROMPTS_DAILY_PHRASE_PRACTICE,
     ...SEED_PROMPTS_DO_WHAT_I_SAY,
     ...SEED_PROMPTS_BUILD_THE_SENTENCE,
@@ -806,7 +808,12 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
     await database.execAsync('PRAGMA user_version = 12;');
   }
 
-  await database.execAsync('PRAGMA user_version = 12;');
+  if (currentVersion < 13) {
+    await upsertSeedContent(database);
+    await database.execAsync('PRAGMA user_version = 13;');
+  }
+
+  await database.execAsync('PRAGMA user_version = 13;');
   await seedIfFirstRun(database);
 }
 
